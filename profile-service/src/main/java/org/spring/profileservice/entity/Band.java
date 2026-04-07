@@ -33,6 +33,9 @@ public class Band {
     private String linkStreaming;
 
     private String filePath;
+
+    private String imagePath;
+
     @ElementCollection
     @CollectionTable(name="band_members", joinColumns = @JoinColumn(name = "band_id"))
     @Column(name = "user_id")
