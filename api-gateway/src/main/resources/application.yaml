@@ -1,0 +1,32 @@
+server:
+  port: 8080 # La porta a cui punterà il frontend
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true # Permette al gateway di trovare i servizi su Eureka
+          lower-case-service-id: true # Converte i nomi in minuscolo (es: PROFILE-SERVICE -> profile-service)
+      routes:
+        # Esempio di rotta per il Profile Service
+        - id: profile-service
+          uri: lb://profile-service # "lb" sta per Load Balancer (usa Eureka)
+          predicates:
+            - Path=/api/profiles/**
+
+        # Esempio di rotta per il Booking Service
+        - id: booking-service
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/bookings/**
+
+eureka:
+  instance:
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka # Si registra su Eureka

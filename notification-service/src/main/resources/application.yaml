@@ -1,0 +1,33 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: notification-service
+
+  # Configurazione Mail per MailHog
+  mail:
+    host: localhost
+    port: 1025
+    properties:
+      mail:
+        smtp: # Scritto in minuscolo
+          auth: false
+          starttls:
+            enable: false # Scritto in minuscolo
+
+  # Configurazione Kafka Consumer
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: notification-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*" # Permette di ricevere oggetti da qualsiasi pacchetto (comodo per i test)
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
