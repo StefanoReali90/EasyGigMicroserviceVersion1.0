@@ -12,7 +12,7 @@ public record BandFullResponse(
         String linkStreaming,
         String filePath,
         String imagePath,
-        List<Long> memberIds,
+        List<MemberSummaryResponse> member,
         List<String> genres
 ) {
 }
