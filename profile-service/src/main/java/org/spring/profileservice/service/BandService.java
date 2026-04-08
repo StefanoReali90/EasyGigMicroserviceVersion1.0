@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.spring.profileservice.dto.BandFullResponse;
 import org.spring.profileservice.dto.BandRegistrationRequest;
 import org.spring.profileservice.entity.Band;
+import org.spring.profileservice.exception.BandNonTrovataException;
 import org.spring.profileservice.exception.NotBlankException;
 import org.spring.profileservice.mapper.BandMapper;
 import org.spring.profileservice.repository.BandRepository;
@@ -27,4 +28,24 @@ public class BandService {
         bandRepository.save(band);
         return bandMapper.toFullResponse(band);
     }
+
+    @Transactional
+    public BandFullResponse updateBand(BandRegistrationRequest dto, Long id) {
+        if(!bandRepository.existsById(id)) {
+            throw new BandNonTrovataException("Band non trovata");
+
+        }
+        Band band = bandMapper.toEntity(dto);
+        bandRepository.save(band);
+        return bandMapper.toFullResponse(band);
+    }
+
+    public void deleteBand(Long id) {
+        if(!bandRepository.existsById(id)) {
+            throw new BandNonTrovataException("Band non trovata");
+        }
+        bandRepository.deleteById(id);
+    }
+
+
 }

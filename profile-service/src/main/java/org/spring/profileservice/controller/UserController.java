@@ -27,9 +27,13 @@ public class UserController {
         UserResponse response = userService.updateUser(request, id);
         return ResponseEntity.ok(response);
     }
-    @GetMapping(path = "/{id}")
+    @GetMapping(path = "/{id}", produces = "application/json")
     public ResponseEntity<UserResponse> getUser(@PathVariable Long id){
         UserResponse response = userService.getUser(id);
         return ResponseEntity.ok(response);
+    }
+    @DeleteMapping(path= "{id}")
+    public void deleteUser(@PathVariable Long id){
+        userService.deleteUser(id);
     }
 }
