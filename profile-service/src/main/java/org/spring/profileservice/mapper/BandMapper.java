@@ -37,7 +37,7 @@ public abstract class BandMapper {
     @Mapping(target = "primaryGenre", expression = "java(getPrimaryGenreName(band.getGenres()))")
     public abstract BandSearchResponse toSearchResponse(Band band);
 
-    protected List<BandMemberResponse> mapMemberIdsToResponses(List<Long> memberIds) {
+    public List<BandMemberResponse> mapMemberIdsToResponses(List<Long> memberIds) {
         if (memberIds == null || memberIds.isEmpty()) return List.of();
 
         return userRepository.findAllById(memberIds).stream()
@@ -60,4 +60,5 @@ public abstract class BandMapper {
     @Mapping(target = "city", ignore = true)
     @Mapping(target = "genres", ignore = true)
     public abstract void updateBandFromDto(BandRegistrationRequest dto, @MappingTarget Band band);
+
 }

@@ -11,6 +11,8 @@ public record BandRegistrationRequest(
         BandType bandType,
         Long cityId,
         String linkStreaming,
+        String filePath,
+        String imagePath,
         List<Long> memberIds,
         List<Long> genreIds
 

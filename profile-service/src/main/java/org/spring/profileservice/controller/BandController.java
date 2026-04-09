@@ -1,13 +1,14 @@
 package org.spring.profileservice.controller;
 
-import org.spring.profileservice.dto.BandFullResponse;
-import org.spring.profileservice.dto.BandRegistrationRequest;
+import org.spring.profileservice.dto.*;
 import org.spring.profileservice.service.BandService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/bands")
@@ -32,4 +33,18 @@ public class BandController {
     public void deleteBand(@PathVariable Long id) {
         bandService.deleteBand(id);
     }
+
+    @GetMapping(path= "/{id}", produces = "application/json")
+    public ResponseEntity<BandSearchResponse> getBand(@PathVariable Long id) {
+        BandSearchResponse response = bandService.getBand(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping(path = "/{id}/members", produces = "application/json")
+    public ResponseEntity<List<BandMemberResponse>> getBandMembers(@PathVariable Long id) {
+        List<BandMemberResponse> response = bandService.getBandMembers(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+
 }
