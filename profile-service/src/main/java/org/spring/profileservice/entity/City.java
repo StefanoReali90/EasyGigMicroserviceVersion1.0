@@ -3,6 +3,7 @@ package org.spring.profileservice.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.ToString;
+import org.spring.profileservice.utility.OrganizationType;
 
 import java.util.List;
 
@@ -19,6 +20,9 @@ public class City {
     @OneToMany(mappedBy = "city")
     @ToString.Exclude
     private List<Address> addresses;
+
+    @OneToMany(mappedBy = "city")
+    private List<BookingOrganization> bookingOrganizations;
 
 
 }

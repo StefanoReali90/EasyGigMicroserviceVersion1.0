@@ -5,6 +5,7 @@ import org.spring.profileservice.dto.*;
 import org.spring.profileservice.entity.Band;
 import org.spring.profileservice.entity.City;
 import org.spring.profileservice.entity.Genre;
+import org.spring.profileservice.entity.User;
 import org.spring.profileservice.exception.BandNonTrovataException;
 import org.spring.profileservice.exception.CityNotFoundException;
 import org.spring.profileservice.exception.MembroNonTrovatoException;
@@ -78,14 +79,18 @@ public class BandService {
     }
 
     public List<BandMemberResponse> getBandMembers(Long id) {
-        Band band = bandRepository.findById(id).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
-        return bandMapper.mapMemberIdsToResponses(band.getMemberIds());
+        Band band = bandRepository.findById(id)
+                .orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
+        
+        List<Long> memberIds = band.getMembers().stream()
+                .map(User::getId)
+                .toList();
 
-
+        return bandMapper.mapMemberIdsToResponses(memberIds);
     }
     public BandMemberResponse getBandMemberSummary(Long bandId, Long memberId) {
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
-        if(!band.getMemberIds().contains(memberId)) {
+        if(!band.getMembers().contains(memberId)) {
             throw new MembroNonTrovatoException("Membro non trovato nella band");
         }
         List <BandMemberResponse> members = bandMapper.mapMemberIdsToResponses(List.of(memberId));

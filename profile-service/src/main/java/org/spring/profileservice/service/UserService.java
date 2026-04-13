@@ -9,10 +9,9 @@ import org.spring.profileservice.entity.StateAccount;
 import org.spring.profileservice.entity.User;
 import org.spring.profileservice.exception.EmailGiaEsistenteException;
 import org.spring.profileservice.exception.InvalidTokenException;
-import org.spring.profileservice.exception.UtenteNonTrovatoException;
+import org.spring.profileservice.exception.UserNotFoundException;
 import org.spring.profileservice.mapper.UserMapper;
 import org.spring.profileservice.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -47,7 +46,7 @@ public class UserService {
     }
     @Transactional
     public UserResponse updateUser(UserUpdateRequest request, Long id){
-        User user = userRepository.findById(id).orElseThrow(()-> new UtenteNonTrovatoException("Utente non trovato"));
+        User user = userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("Utente non trovato"));
         userMapper.updateUserFromDto(request,user);
         if(request.password() != null && !request.password().isBlank() ){
             user.setPasswordHash("BCRYPT_SIMULATED_" + request.password());
@@ -58,14 +57,14 @@ public class UserService {
     @Transactional
     public void deleteUser(Long id){
         if(!userRepository.existsById(id)){
-            throw new UtenteNonTrovatoException("Utente non trovato");
+            throw new UserNotFoundException("Utente non trovato");
         }
         userRepository.deleteById(id);
     }
 
     public UserResponse getUser(Long id){
         if(!userRepository.existsById(id)){
-            throw new UtenteNonTrovatoException("Utente non trovato");
+            throw new UserNotFoundException("Utente non trovato");
         }
         return userMapper.toResponse(userRepository.findById(id).get());
     }

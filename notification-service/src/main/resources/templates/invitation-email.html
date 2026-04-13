@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <style>
+        .button {
+            background-color: #1DB954;
+            color: white;
+            padding: 15px 25px;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+<div style="padding: 20px; background-color: #ffffff; border-radius: 8px;">
+    <h2 style="color: #333333;">Sei stato invitato! 🎸</h2>
+    <p style="color: #666666; font-size: 16px;">
+        La band <strong th:text="${bandName}" style="color: #1DB954;">Nome Band</strong> ti ha invitato a far parte di EasyGIG.
+    </p>
+
+    <div style="margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #1DB954; text-align: left;">
+        <p style="margin: 5px 0;"><strong>Genere:</strong> <span th:text="${bandGenre}">Rock</span></p>
+        <p style="margin: 5px 0;"><strong>Membri attuali:</strong> <span th:text="${memberCount}">3</span></p>
+    </div>
+
+    <p style="color: #666666;">Non perdere l'occasione di organizzare i tuoi prossimi concerti con EasyGIG.</p>
+
+    <p style="color: #666666; font-size: 14px; margin-top: 20px;">
+        ⚠️ Questo invito scadrà tra <strong th:text="${expiryDays}">7</strong> giorni.
+    </p>
+
+    <div style="margin-top: 30px;">
+        <a th:href="${confirmationUrl}" class="button" style="background-color: #1DB954; color: white; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            UNISCITI ALLA BAND
+        </a>
+    </div>
+</div>
+</body>
+</html>

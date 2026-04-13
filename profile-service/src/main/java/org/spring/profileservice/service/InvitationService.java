@@ -1,16 +1,23 @@
 package org.spring.profileservice.service;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import lombok.RequiredArgsConstructor;
+import org.spring.profileservice.dto.InvitationEventDTO;
 import org.spring.profileservice.entity.Band;
+import org.spring.profileservice.entity.BookingOrganization;
 import org.spring.profileservice.entity.Invitation;
-import org.spring.profileservice.exception.BandNonTrovataException;
-import org.spring.profileservice.exception.InvalidTokenException;
-import org.spring.profileservice.exception.InvitationAlreadyProcessedException;
-import org.spring.profileservice.exception.InvitationNotFoundException;
+import org.spring.profileservice.entity.User;
+import org.spring.profileservice.exception.*;
+import org.spring.profileservice.model.InvitingGroup;
 import org.spring.profileservice.repository.BandRepository;
+import org.spring.profileservice.repository.BookingOrganizationRepository;
 import org.spring.profileservice.repository.InvitationRepository;
+import org.spring.profileservice.repository.UserRepository;
+import org.spring.profileservice.utility.GroupType;
 import org.spring.profileservice.utility.InvitationStatus;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -21,50 +28,103 @@ import java.util.Map;
 public class InvitationService {
 
     private final InvitationRepository invitationRepository;
-
     private final JwtService jwtService;
-
     private final BandRepository bandRepository;
+    private final BookingOrganizationRepository bookingOrganizationRepository;
+    private final UserRepository userRepository;
 
+    // KafkaTemplate per inviare messaggi al Notification Service
+    private final KafkaTemplate<String, InvitationEventDTO> kafkaTemplate;
 
-    public void createInvitation(String email, Long idBand) {
-        Band band = bandRepository.findById(idBand).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
+    @Value("${application.invitation.expiry-days}")
+    private int expiryDays;
+
+    public void createInvitation(String email, Long groupId, Long senderId, GroupType type) {
+        InvitingGroup group = findGroupById(groupId, type);
+
+        // Controllo autorizzazione
+        boolean isAuthorized = group.getMembers().stream()
+                .anyMatch(user -> user.getId().equals(senderId));
+
+        if (!isAuthorized) {
+            throw new UnauthorizedException("Non hai i permessi per invitare membri in questo gruppo");
+        }
+
+        // Generazione Token
         Map<String, Object> claims = new HashMap<>();
-        claims.put("bandId", idBand);
+        claims.put("groupId", groupId);
+        claims.put("groupType", type.name());
         String token = jwtService.generateToken(claims, email);
+
+        // Salvataggio Invito nel DB locale
         Invitation invitation = new Invitation();
         invitation.setEmail(email);
-        invitation.setBand(band);
         invitation.setTokenJwt(token);
+        invitation.setGroupId(groupId);
+        invitation.setGroupType(type);
         invitation.setStatus(InvitationStatus.PENDING);
         invitationRepository.save(invitation);
 
+        // Preparo il pacchetto per il Notification Service
+        InvitationEventDTO event = new InvitationEventDTO(
+                email,
+                group.getName(),
+                token,
+                type,
+                group.getMembers().size()
+        );
+
+        // Invio del messaggio a Kafka
+        kafkaTemplate.send("invitation-topic", event);
     }
 
     public void acceptInvitation(String token, Long newUserId) {
-        Long bandId = jwtService.extractBandId(token);
-        String email = jwtService.getClaim(token, Claims::getSubject);
+        try {
+            String email = jwtService.getClaim(token, Claims::getSubject);
+            Long groupId = jwtService.getClaim(token, claims -> claims.get("groupId", Long.class));
+            String typeStr = jwtService.getClaim(token, claims -> claims.get("groupType", String.class));
+            GroupType type = GroupType.valueOf(typeStr);
 
-        if (!jwtService.validateToken(token, email)) {
-            throw new InvalidTokenException("Il link di invito è scaduo o non valido");
+            if (!jwtService.validateToken(token, email)) {
+                throw new InvalidTokenException("Il link non è valido");
+            }
+
+            Invitation invitation = invitationRepository.findByTokenJwt(token);
+            if (invitation == null || invitation.getStatus() != InvitationStatus.PENDING) {
+                throw new InvitationAlreadyProcessedException("Invito non valido o già usato");
+            }
+
+            InvitingGroup group = findGroupById(groupId, type);
+            User user = userRepository.findById(newUserId)
+                    .orElseThrow(() -> new UserNotFoundException("Utente non trovato"));
+
+            group.addMember(user);
+            saveGroup(group, type);
+
+            invitation.setStatus(InvitationStatus.ACCEPTED);
+            invitationRepository.save(invitation);
+
+        } catch (ExpiredJwtException e) {
+            throw new InvalidTokenException("L'invito è scaduto, contatta l'organizzatore");
         }
-        Invitation invitation = invitationRepository.findByTokenJwt(token);
+    }
 
-        if (invitation == null || invitation.getStatus() != InvitationStatus.PENDING) {
-            throw new InvitationAlreadyProcessedException("Questo invito è già stato utilizzato o non è valido");
+    // Metodi di utility
+    private InvitingGroup findGroupById(Long groupId, GroupType type) {
+        if (type == GroupType.BAND) {
+            return (InvitingGroup) bandRepository.findById(groupId)
+                    .orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
+        } else {
+            return (InvitingGroup) bookingOrganizationRepository.findById(groupId)
+                    .orElseThrow(() -> new OrganizationNotFoundException("Organizzazione non trovata"));
         }
+    }
 
-        Band band = invitation.getBand();
-
-        if (!band.getMemberIds().contains(newUserId)) {
-
-            band.getMemberIds().add(newUserId);
-            bandRepository.save(band);
-
+    private void saveGroup(InvitingGroup group, GroupType type) {
+        if (type == GroupType.BAND) {
+            bandRepository.save((Band) group);
+        } else {
+            bookingOrganizationRepository.save((BookingOrganization) group);
         }
-        invitation.setStatus(InvitationStatus.ACCEPTED);
-        invitationRepository.save(invitation);
-
-
     }
 }

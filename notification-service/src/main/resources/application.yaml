@@ -5,16 +5,21 @@ spring:
   application:
     name: notification-service
 
-  # Configurazione Mail per MailHog
+  datasource:
+    url: jdbc:postgresql://localhost:5432/easygig-profiles
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}
   mail:
-    host: localhost
-    port: 1025
+    host: smtp.mailtrap.io
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
-        smtp: # Scritto in minuscolo
-          auth: false
+        smtp:
+          auth: true
           starttls:
-            enable: false # Scritto in minuscolo
+            enable: true
 
   # Configurazione Kafka Consumer
   kafka:
@@ -25,7 +30,7 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "*" # Permette di ricevere oggetti da qualsiasi pacchetto (comodo per i test)
+        spring.json.trusted.packages: "*"
 
 eureka:
   client:

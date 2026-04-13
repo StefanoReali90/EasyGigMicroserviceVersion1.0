@@ -2,13 +2,14 @@ package org.spring.profileservice.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.spring.profileservice.model.InvitingGroup;
 import org.spring.profileservice.utility.BandType;
 
 import java.util.List;
 
 @Entity
 @Data
-public class Band {
+public class Band implements InvitingGroup {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,10 +37,14 @@ public class Band {
 
     private String imagePath;
 
-    @ElementCollection
-    @CollectionTable(name="band_members", joinColumns = @JoinColumn(name = "band_id"))
-    @Column(name = "user_id")
-    private List<Long> memberIds;
+    @ManyToMany
+    @JoinTable(
+            name = "band_members",
+            joinColumns = @JoinColumn(name = "band_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private List<User> members;
+
 
     @ManyToMany
     private List<Genre> genres;
@@ -47,4 +52,15 @@ public class Band {
     @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Invitation> invitations;
 
+    @Override
+    public List<User> getMembers() {
+        return List.of();
+    }
+
+    @Override
+    public void addMember(User user) {
+        if (!this.members.contains(user)) {
+            this.members.add(user);
+        }
+    }
 }

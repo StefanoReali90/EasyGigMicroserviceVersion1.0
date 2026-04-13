@@ -2,7 +2,7 @@ package org.spring.profileservice.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import org.spring.easygig3.utility.OrganizationType;
+import org.spring.profileservice.utility.OrganizationType;
 
 import java.util.List;
 
@@ -16,6 +16,17 @@ public class BookingOrganization {
     @Column(nullable = false)
     private String name;
 
+    @ManyToOne(cascade = CascadeType.ALL)
+    private City city;
+
+    @Column
+    private String partitaIva;
+
+    @Column
+    private String description;
+
+
+
     @Column(nullable = false)
     private String eventsHistory;
 
@@ -24,4 +35,7 @@ public class BookingOrganization {
 
     @ManyToMany(mappedBy = "organizations")
     private List<User> promoters;
+
+    @OneToMany(mappedBy = "bookingOrganization", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Invitation> invitations;
 }

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler({
-            UtenteNonTrovatoException.class,
+            UserNotFoundException.class,
             EmailGiaEsistenteException.class,
             BandNonTrovataException.class,
             CityNotFoundException.class,
@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex) {
 
         HttpStatus status = switch (ex) {
-            case UtenteNonTrovatoException e -> HttpStatus.NOT_FOUND;
+            case UserNotFoundException e -> HttpStatus.NOT_FOUND;
             case EmailGiaEsistenteException e -> HttpStatus.CONFLICT;
             case BandNonTrovataException e -> HttpStatus.BAD_REQUEST;
             case CityNotFoundException e -> HttpStatus.NOT_FOUND;

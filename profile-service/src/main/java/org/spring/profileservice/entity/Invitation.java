@@ -2,6 +2,7 @@ package org.spring.profileservice.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.spring.profileservice.utility.GroupType;
 import org.spring.profileservice.utility.InvitationStatus;
 
 @Entity
@@ -19,9 +20,18 @@ public class Invitation {
     private String tokenJwt;
 
     @ManyToOne
-    @JoinColumn(nullable = false)
+    @JoinColumn
     private Band band;
 
+    @ManyToOne
+    private BookingOrganization bookingOrganization;
+
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private InvitationStatus status;
+    @Column
+    private Long groupId;
+    @Column(nullable = false)
+    private GroupType groupType;
+
 }

@@ -7,12 +7,15 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
+import org.spring.profileservice.entity.Invitation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.SecretKey;
 import java.security.Key;
 import java.util.Date;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 @Service
@@ -21,16 +24,17 @@ public class JwtService {
 
     @Value("${application.security.jwt.secret-key}")
     private String secretKey;
+    @Value("${application.invitation.expiry-days}")
+    private int expiryDays;
 
-    @Value("${application.security.jwt.expiration}")
-    private long jwtExpiration;
 
     public String generateToken(Map<String, Object> claims, String subject) {
+        int ExpirationTime = Math.toIntExact(TimeUnit.DAYS.toMillis(expiryDays));
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .setExpiration(new Date(System.currentTimeMillis() + ExpirationTime))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -42,10 +46,10 @@ public class JwtService {
 
     private Claims extractClaims(String token) {
         return Jwts.parser()
-                .setSigningKey(getSigningKey())
+                .verifyWith((SecretKey) getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public <T> T getClaim(String token, Function<Claims, T> claimsResolver) {
@@ -69,5 +73,6 @@ public class JwtService {
         final String userEmail = getClaim(token, Claims::getSubject);
         return (userEmail.equals(email) && !isTokenExpired(token));
     }
+
 }
 
