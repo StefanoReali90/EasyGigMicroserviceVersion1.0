@@ -14,7 +14,8 @@ public record BandRegistrationRequest(
         String filePath,
         String imagePath,
         List<Long> memberIds,
-        List<Long> genreIds
+        List<Long> genreIds,
+        List<String> invitationEmails
 
 ) {
 }

@@ -44,4 +44,7 @@ public class Band {
     @ManyToMany
     private List<Genre> genres;
 
+    @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Invitation> invitations;
+
 }

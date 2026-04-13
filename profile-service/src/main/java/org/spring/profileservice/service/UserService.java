@@ -8,6 +8,7 @@ import org.spring.profileservice.dto.UserUpdateRequest;
 import org.spring.profileservice.entity.StateAccount;
 import org.spring.profileservice.entity.User;
 import org.spring.profileservice.exception.EmailGiaEsistenteException;
+import org.spring.profileservice.exception.InvalidTokenException;
 import org.spring.profileservice.exception.UtenteNonTrovatoException;
 import org.spring.profileservice.mapper.UserMapper;
 import org.spring.profileservice.repository.UserRepository;
@@ -21,9 +22,16 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final InvitationService invitationService;
+    private final JwtService jwtService;
 
     @Transactional
-    public UserResponse registerUser(UserRegistrationRequest request){
+    public UserResponse registerUser(UserRegistrationRequest request, String token) {
+        if (token != null && !token.isEmpty()) {
+            if(!jwtService.validateToken(token, request.email())){
+                throw new InvalidTokenException("L'email di registrazione non corrisponde a quella dell'invito o il token è invalido.");
+            }
+        }
         if(userRepository.findByEmail(request.email()).isPresent()){
             throw new EmailGiaEsistenteException("E-mail già esistente");
         }
@@ -32,6 +40,9 @@ public class UserService {
         StateAccount state = new StateAccount();
         user.setStateAccount(state);
         User savedUser = userRepository.save(user);
+        if(token != null && !token.isEmpty()){
+            invitationService.acceptInvitation(token, savedUser.getId());
+        }
         return userMapper.toResponse(savedUser);
     }
     @Transactional

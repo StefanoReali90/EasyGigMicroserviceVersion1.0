@@ -18,8 +18,8 @@ public class UserController {
     private UserService userService;
 
     @PostMapping(value = "/", consumes = "application/json")
-    public ResponseEntity<UserResponse> registerUser(@RequestBody UserRegistrationRequest request){
-        UserResponse response = userService.registerUser(request);
+    public ResponseEntity<UserResponse> registerUser(@RequestBody UserRegistrationRequest request, @RequestParam String token){
+        UserResponse response = userService.registerUser(request,token);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
     @PutMapping(path = "/{id}", consumes = "application/json")

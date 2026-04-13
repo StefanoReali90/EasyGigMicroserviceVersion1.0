@@ -88,7 +88,11 @@ public class BandService {
         if(!band.getMemberIds().contains(memberId)) {
             throw new MembroNonTrovatoException("Membro non trovato nella band");
         }
-        return bandMapper.mapMemberIdsToResponses(List.of(memberId)).get(0);
+        List <BandMemberResponse> members = bandMapper.mapMemberIdsToResponses(List.of(memberId));
+        if (members.isEmpty()) {
+            throw new MembroNonTrovatoException("Membro non trovato");
+        }
+        return members.get(0);
 
     }
 

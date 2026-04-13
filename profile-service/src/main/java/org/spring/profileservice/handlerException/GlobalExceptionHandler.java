@@ -14,6 +14,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             UtenteNonTrovatoException.class,
             EmailGiaEsistenteException.class,
+            BandNonTrovataException.class,
+            CityNotFoundException.class,
+            InvitationNotFoundException.class,
+            InvitationAlreadyProcessedException.class,
+            InvalidTokenException.class,
+            NotBlankException.class,
+            MembroNonTrovatoException.class
             Exception.class
     })
     public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex) {
@@ -21,6 +28,13 @@ public class GlobalExceptionHandler {
         HttpStatus status = switch (ex) {
             case UtenteNonTrovatoException e -> HttpStatus.NOT_FOUND;
             case EmailGiaEsistenteException e -> HttpStatus.CONFLICT;
+            case BandNonTrovataException e -> HttpStatus.BAD_REQUEST;
+            case CityNotFoundException e -> HttpStatus.NOT_FOUND;
+            case InvitationNotFoundException e -> HttpStatus.NOT_FOUND;
+            case InvitationAlreadyProcessedException e -> HttpStatus.CONFLICT;
+            case InvalidTokenException e -> HttpStatus.UNAUTHORIZED;
+            case NotBlankException e -> HttpStatus.BAD_REQUEST;
+            case MembroNonTrovatoException e -> HttpStatus.BAD_REQUEST;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
 

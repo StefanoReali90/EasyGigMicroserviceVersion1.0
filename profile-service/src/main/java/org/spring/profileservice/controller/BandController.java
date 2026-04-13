@@ -25,7 +25,7 @@ public class BandController {
 
     @PutMapping(path = "/{id}", consumes = "application/json", produces= "application/json")
     public ResponseEntity<BandFullResponse> updateBand(@PathVariable Long id, @RequestBody BandRegistrationRequest dto) {
-        BandFullResponse response = bandService.addBand(dto);
+        BandFullResponse response = bandService.updateBand(dto,id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
