@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
             InvitationAlreadyProcessedException.class,
             InvalidTokenException.class,
             NotBlankException.class,
-            MembroNonTrovatoException.class
+            MembroNonTrovatoException.class,
             Exception.class
     })
     public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex) {
