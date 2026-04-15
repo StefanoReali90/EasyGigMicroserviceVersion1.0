@@ -2,6 +2,7 @@ package org.spring.profileservice.service;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.spring.profileservice.dto.AccountStatusResponse;
 import org.spring.profileservice.dto.UserRegistrationRequest;
 import org.spring.profileservice.dto.UserResponse;
 import org.spring.profileservice.dto.UserUpdateRequest;
@@ -10,6 +11,7 @@ import org.spring.profileservice.entity.User;
 import org.spring.profileservice.exception.EmailGiaEsistenteException;
 import org.spring.profileservice.exception.InvalidTokenException;
 import org.spring.profileservice.exception.UserNotFoundException;
+import org.spring.profileservice.mapper.AccountStatusMapper;
 import org.spring.profileservice.mapper.UserMapper;
 import org.spring.profileservice.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ public class UserService {
     private final UserMapper userMapper;
     private final InvitationService invitationService;
     private final JwtService jwtService;
+    private final AccountStatusMapper accountStatusMapper;
 
     @Transactional
     public UserResponse registerUser(UserRegistrationRequest request, String token) {
@@ -67,6 +70,12 @@ public class UserService {
             throw new UserNotFoundException("Utente non trovato");
         }
         return userMapper.toResponse(userRepository.findById(id).get());
+    }
+
+    public AccountStatusResponse getUserStatus(Long id){
+        User user = userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("User non trovato"));
+        StateAccount stateAccount = user.getStateAccount();
+        return accountStatusMapper.toResponse(stateAccount);
     }
 
 
