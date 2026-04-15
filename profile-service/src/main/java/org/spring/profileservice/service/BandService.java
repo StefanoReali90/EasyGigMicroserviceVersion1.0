@@ -129,12 +129,14 @@ public class BandService {
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
         User user = userRepository.findById(memberId).orElseThrow(() -> new UserNotFoundException(("Utente non trovato")));
         band.addUser(user);
+        bandRepository.save(band);
     }
     @Transactional
     public void removeBandMember(Long bandId, Long memberId) { //metodo per rimuovere un membro di una band tramite id
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
         User user = userRepository.findById(memberId).orElseThrow(() -> new UserNotFoundException(("Utente non trovato")));
         band.removeUser(user);
+        bandRepository.save(band);
 
 
     }
