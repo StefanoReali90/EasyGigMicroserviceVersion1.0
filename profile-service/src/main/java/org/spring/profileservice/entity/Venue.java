@@ -29,6 +29,8 @@ public class Venue {
     @ManyToOne
     @ToString.Exclude
     private User director;
+    @OneToMany(mappedBy = "venue", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Photo> photos;
 
 
 

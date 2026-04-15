@@ -13,6 +13,7 @@ public record BandFullResponse(
         String filePath,
         String imagePath,
         List<MemberSummaryResponse> member,
-        List<String> genres
+        List<String> genres,
+        List<PhotoResponse> photos
 ) {
 }

@@ -1,12 +1,10 @@
 package org.spring.profileservice.mapper;
 
 import org.mapstruct.*;
-import org.spring.profileservice.dto.BandFullResponse;
-import org.spring.profileservice.dto.BandMemberResponse;
-import org.spring.profileservice.dto.BandRegistrationRequest;
-import org.spring.profileservice.dto.BandSearchResponse;
+import org.spring.profileservice.dto.*;
 import org.spring.profileservice.entity.Band;
 import org.spring.profileservice.entity.Genre;
+import org.spring.profileservice.entity.Photo;
 import org.spring.profileservice.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -23,14 +21,15 @@ public abstract class BandMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "city", ignore = true)
     @Mapping(target = "genres", ignore = true)
-    @Mapping(target = "imagePath", ignore = true)
     @Mapping(target = "filePath", ignore = true)
+    @Mapping(target = "photos", ignore = true)
     public abstract Band toEntity(BandRegistrationRequest request);
 
 
     @Mapping(target = "cityName", source = "city.name")
     @Mapping(target = "members", expression = "java(mapMemberIdsToResponses(band.getMemberIds()))")
     @Mapping(target = "genres", expression = "java(mapGenresToNames(band.getGenres()))")
+    @Mapping(target = "photos", source = "photos")
     public abstract BandFullResponse toFullResponse(Band band);
 
     @Mapping(target = "cityName", source = "city.name")
@@ -60,5 +59,7 @@ public abstract class BandMapper {
     @Mapping(target = "city", ignore = true)
     @Mapping(target = "genres", ignore = true)
     public abstract void updateBandFromDto(BandRegistrationRequest dto, @MappingTarget Band band);
+
+    public abstract PhotoResponse toPhotoResponse(Photo photo);
 
 }

@@ -2,10 +2,7 @@ package org.spring.profileservice.service;
 
 import lombok.RequiredArgsConstructor;
 import org.spring.profileservice.dto.*;
-import org.spring.profileservice.entity.Band;
-import org.spring.profileservice.entity.City;
-import org.spring.profileservice.entity.Genre;
-import org.spring.profileservice.entity.User;
+import org.spring.profileservice.entity.*;
 import org.spring.profileservice.exception.BandNonTrovataException;
 import org.spring.profileservice.exception.CityNotFoundException;
 import org.spring.profileservice.exception.MembroNonTrovatoException;
@@ -42,6 +39,21 @@ public class BandService {
 
     }
 
+    private void validatePrimaryPhoto(List<Photo> photos){
+        long primaryCount = photos.stream().filter(Photo::isPrimary).count();
+        if (primaryCount > 1){
+            boolean foundFirst = false;
+            for (Photo photo : photos){
+                if (photo.isPrimary()){
+                    if (foundFirst) photo.setPrimary(false);
+                    else foundFirst = true;
+                }
+            }
+        }else if (primaryCount == 0 && !photos.isEmpty()){
+            photos.get(0).setPrimary(true);
+        }
+    }
+
     @Transactional
     public BandFullResponse addBand(BandRegistrationRequest dto) {
         if(dto.name() == null || dto.name().isBlank()) {
@@ -59,6 +71,18 @@ public class BandService {
                 .orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
 
         bandMapper.updateBandFromDto(dto, band);
+
+        if(dto.photos()!= null){
+            band.getPhotos().clear();
+            for (PhotoRequest photoRequest : dto.photos()){
+                Photo photo = new Photo();
+                photo.setSource(photoRequest.source());
+                photo.setPrimary(photoRequest.isPrimary());
+                photo.setBand(band);
+                band.getPhotos().add(photo);
+            }
+            validatePrimaryPhoto(band.getPhotos());
+        }
 
         populateCityAndGenres(band, dto);
 

@@ -35,7 +35,8 @@ public class Band implements InvitingGroup {
 
     private String filePath;
 
-    private String imagePath;
+    @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Photo> photos;
 
     @ManyToMany
     @JoinTable(

@@ -12,10 +12,10 @@ public record BandRegistrationRequest(
         Long cityId,
         String linkStreaming,
         String filePath,
-        String imagePath,
         List<Long> memberIds,
         List<Long> genreIds,
-        List<String> invitationEmails
+        List<String> invitationEmails,
+        List<PhotoRequest> photos
 
 ) {
 }

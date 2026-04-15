@@ -2,6 +2,8 @@ package org.spring.profileservice.dto;
 
 import org.spring.profileservice.utility.VenueType;
 
+import java.util.List;
+
 public record VenueRequest(
         String name,
         String phone,
@@ -12,6 +14,7 @@ public record VenueRequest(
         String street,
         String houseNumber,
         String zipCode,
-        Long cityId
+        Long cityId,
+        List<PhotoRequest> photos
 ) {
 }
