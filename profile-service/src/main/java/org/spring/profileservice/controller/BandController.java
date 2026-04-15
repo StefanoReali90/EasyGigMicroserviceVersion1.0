@@ -46,6 +46,16 @@ public class BandController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PatchMapping(path= "/{bandId}/{memberId}")
+    public void addBandMember(@PathVariable Long bandId, @PathVariable Long memberId) {
+        bandService.addBandMember(bandId, memberId);
+    }
+
+    @DeleteMapping(path = "/{bandId}/{memberId}")
+    public void deleteBandMember(@PathVariable Long bandId, @PathVariable Long memberId) {
+        bandService.removeBandMember(bandId, memberId);
+    }
+
 
 
 

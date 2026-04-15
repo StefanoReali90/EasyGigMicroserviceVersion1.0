@@ -16,27 +16,32 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
+@RequiredArgsConstructor //utilizzo lombok per iniettare i repository
 public class BandService {
 
-    private final BandRepository bandRepository;
-    private final BandMapper bandMapper;
-    private final GenreRepository genreRepository;
-    private final CityRepository cityRepository;
-    private final UserRepository userRepository;
+    private final BandRepository bandRepository; //repository delle band
+    private final BandMapper bandMapper; //inietto il mapper di band per gestire le risposte dto
+    private final GenreRepository genreRepository; //repository dei generi musicali
+    private final CityRepository cityRepository; //repository delle città
+    private final UserRepository userRepository; //repository degli utenti
 
+    /**
+     * Associa la città e aggiorna i generi musicali della band,
+     * garantendo la coerenza delle relazioni bidirezionali.
+     */
     private void populateCityAndGenres(Band band, BandRegistrationRequest dto) {
-        if (dto.cityId() != null) {
-            City city = cityRepository.findById(dto.cityId())
-                    .orElseThrow(() -> new CityNotFoundException("Città non trovata"));
-            band.setCity(city);
+        // Gestione della città: recupero l'entità dal DB tramite l'ID fornito
+        if (dto.cityId() != null) { //controllo se la città è presente nella richiesta
+            City city = cityRepository.findById(dto.cityId()) //inizializzo la città pescandola dal repository
+                    .orElseThrow(() -> new CityNotFoundException("Città non trovata"));// se la città non esiste sollevo un eccezione
+            band.setCity(city); // se passa i controlli salvo la citta
         }
-
+        // Gestione dei generi: sincronizzazione della relazione Many-to-Many
         if (dto.genreIds() != null && !dto.genreIds().isEmpty()) {
             List<Genre> newGenres = genreRepository.findAllByIdIn(dto.genreIds());
-
+            // Pulizia sicura: scolleghiamo i vecchi generi aggiornando entrambi i lati della relazione
             new ArrayList<>(band.getGenres()).forEach(band::removeGenre);
-
+            //// Associazione dei nuovi generi tramite il metodo helper
             for (Genre genre : newGenres) {
                 band.addGenre(genre);
             }
@@ -44,18 +49,22 @@ public class BandService {
 
 
     }
-
+    /**
+     * Garantisce l'integrità della foto principale:
+     * 1. Se ci sono troppe foto primarie, mantiene solo la prima trovata.
+     * 2. Se non ce n'è nessuna, imposta la prima della lista come primaria.
+     */
     private void validatePrimaryPhoto(List<Photo> photos) {
-        long primaryCount = photos.stream().filter(Photo::isPrimary).count();
-        if (primaryCount > 1) {
-            boolean foundFirst = false;
-            for (Photo photo : photos) {
-                if (photo.isPrimary()) {
-                    if (foundFirst) photo.setPrimary(false);
-                    else foundFirst = true;
+        long primaryCount = photos.stream().filter(Photo::isPrimary).count(); //salvo il conteggio delle foto
+        if (primaryCount > 1) { //se il conteggio è meggio di 1
+            boolean foundFirst = false; //setto la variabile foundFIrst a false
+            for (Photo photo : photos) {//itero sulle foto
+                if (photo.isPrimary()) {//per ogni foto verifico se sia la foto primaria
+                    if (foundFirst) photo.setPrimary(false); //se non è primaria setto a false
+                    else foundFirst = true; //altrimenti setto a true
                 }
             }
-        } else if (primaryCount == 0 && !photos.isEmpty()) {
+        } else if (primaryCount == 0 && !photos.isEmpty()) { //Caso: nessuna foto primaria. Imposta di default la prima della lista.
             photos.get(0).setPrimary(true);
         }
     }
