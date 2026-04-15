@@ -11,20 +11,20 @@ import java.util.List;
 @Entity
 @Data
 public class StateAccount {
-    @Id
+    @Id //id dello stato dell'account generato automaticamente
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false)// numero di strikes
     private Integer strikes = 0;
 
-    @Column(nullable = false)
+    @Column(nullable = false)//verifica se l'account è bannato
     private boolean isBanned = false;
 
-    @Column
+    @Column// data di fine ban
     private LocalDate banUntil;
 
-    @Column
+    @Column//data dell'ultimo ban
     private LocalDateTime lastBanDate;
 
 }

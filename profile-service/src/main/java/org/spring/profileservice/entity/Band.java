@@ -101,6 +101,6 @@ public class Band implements InvitingGroup {
     }
     public void removeUser(User user) { //metodo helper per rimuovere un utente
         this.members.remove(user);
-        user.getBands().add(this);
+        user.getBands().remove(this);
     }
 }
