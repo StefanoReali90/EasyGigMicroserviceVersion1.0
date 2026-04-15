@@ -26,4 +26,5 @@ public interface UserMapper {
     @Mapping(target = "reputation", ignore = true)
     @Mapping(target = "reviewCount", ignore = true)
     void updateUserFromDto(UserUpdateRequest dto, @MappingTarget User user);
+
 }
