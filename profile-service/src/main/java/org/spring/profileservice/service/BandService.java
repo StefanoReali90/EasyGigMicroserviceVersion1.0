@@ -3,14 +3,12 @@ package org.spring.profileservice.service;
 import lombok.RequiredArgsConstructor;
 import org.spring.profileservice.dto.*;
 import org.spring.profileservice.entity.*;
-import org.spring.profileservice.exception.BandNonTrovataException;
-import org.spring.profileservice.exception.CityNotFoundException;
-import org.spring.profileservice.exception.MembroNonTrovatoException;
-import org.spring.profileservice.exception.NotBlankException;
+import org.spring.profileservice.exception.*;
 import org.spring.profileservice.mapper.BandMapper;
 import org.spring.profileservice.repository.BandRepository;
 import org.spring.profileservice.repository.CityRepository;
 import org.spring.profileservice.repository.GenreRepository;
+import org.spring.profileservice.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +22,7 @@ public class BandService {
     private final BandMapper bandMapper;
     private final GenreRepository genreRepository;
     private final CityRepository cityRepository;
+    private final UserRepository userRepository;
 
     private void populateCityAndGenres(Band band, BandRegistrationRequest dto){
         if (dto.cityId() != null) {
@@ -122,6 +121,21 @@ public class BandService {
             throw new MembroNonTrovatoException("Membro non trovato");
         }
         return members.get(0);
+
+    }
+
+    @Transactional
+    public void addBandMember(Long bandId, Long memberId) {// metodo per aggiungere un membro di una band tramite id
+        Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
+        User user = userRepository.findById(memberId).orElseThrow(() -> new UserNotFoundException(("Utente non trovato")));
+        band.addUser(user);
+    }
+    @Transactional
+    public void removeBandMember(Long bandId, Long memberId) { //metodo per rimuovere un membro di una band tramite id
+        Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
+        User user = userRepository.findById(memberId).orElseThrow(() -> new UserNotFoundException(("Utente non trovato")));
+        band.removeUser(user);
+
 
     }
 
