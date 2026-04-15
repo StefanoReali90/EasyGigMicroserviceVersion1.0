@@ -69,18 +69,38 @@ public class Band implements InvitingGroup {
             this.members.add(user);
         }
     }
-    public void addPhoto(Photo photo) {
+    public void addUser(User user) {//metodo helper per aggiungere un utente
+        this.members.add(user);
+        user.getBands().add(this);
+    }
+    public void addPhoto(Photo photo) {//metodo helper per aggiungere un foto
         this.photos.add(photo);
         photo.setBand(this); // aggiorna il lato "Many" della relazione photo
     }
 
-    public void addInvitation(Invitation invitation) {
+    public void addInvitation(Invitation invitation) { //metodo helper per aggiungere un invito
         this.invitations.add(invitation);
         invitation.setBand(this); // aggiorna il lato "Many" della relazione invitation
     }
-    public void addGenre(Genre genre) {
+    public void addGenre(Genre genre) { //metodo helper per aggiungere un genere
         this.genres.add(genre);
         genre.getBands().add(this);//aggiorna il lato "Many" del genere
 
+    }
+    public void removeInvitation(Invitation invitation) {//metodo helper per rimuovere un invito
+        this.invitations.remove(invitation);
+        invitation.setBand(null);
+    }
+    public void removeGenre(Genre genre) { //metodo helper per rimuovere un genere
+        this.genres.remove(genre);
+        genre.getBands().remove(this);
+    }
+    public void removePhoto(Photo photo) { //metodo helper per rimuovere una foto
+        this.photos.remove(photo);
+        photo.setBand(null);
+    }
+    public void removeUser(User user) { //metodo helper per rimuovere un utente
+        this.members.remove(user);
+        user.getBands().add(this);
     }
 }

@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.spring.profileservice.utility.UserType;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -45,6 +46,9 @@ public class User {
 
     @Column(nullable = false)
     private Boolean privacyAccepted;
+
+    @ManyToMany(mappedBy = "members")
+    private List<Band> bands = new ArrayList<>();
 
     @OneToMany(mappedBy = "director", fetch = FetchType.LAZY)
     @ToString.Exclude //Evitiamo loop infiniti nel toString(=
