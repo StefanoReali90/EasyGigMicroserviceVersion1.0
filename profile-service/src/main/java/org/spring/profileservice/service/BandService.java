@@ -12,6 +12,7 @@ import org.spring.profileservice.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -24,7 +25,7 @@ public class BandService {
     private final CityRepository cityRepository;
     private final UserRepository userRepository;
 
-    private void populateCityAndGenres(Band band, BandRegistrationRequest dto){
+    private void populateCityAndGenres(Band band, BandRegistrationRequest dto) {
         if (dto.cityId() != null) {
             City city = cityRepository.findById(dto.cityId())
                     .orElseThrow(() -> new CityNotFoundException("Città non trovata"));
@@ -32,30 +33,36 @@ public class BandService {
         }
 
         if (dto.genreIds() != null && !dto.genreIds().isEmpty()) {
-            List<Genre> genres = genreRepository.findAllByIdIn(dto.genreIds());
-            band.setGenres(genres);
+            List<Genre> newGenres = genreRepository.findAllByIdIn(dto.genreIds());
+
+            new ArrayList<>(band.getGenres()).forEach(band::removeGenre);
+
+            for (Genre genre : newGenres) {
+                band.addGenre(genre);
+            }
         }
+
 
     }
 
-    private void validatePrimaryPhoto(List<Photo> photos){
+    private void validatePrimaryPhoto(List<Photo> photos) {
         long primaryCount = photos.stream().filter(Photo::isPrimary).count();
-        if (primaryCount > 1){
+        if (primaryCount > 1) {
             boolean foundFirst = false;
-            for (Photo photo : photos){
-                if (photo.isPrimary()){
+            for (Photo photo : photos) {
+                if (photo.isPrimary()) {
                     if (foundFirst) photo.setPrimary(false);
                     else foundFirst = true;
                 }
             }
-        }else if (primaryCount == 0 && !photos.isEmpty()){
+        } else if (primaryCount == 0 && !photos.isEmpty()) {
             photos.get(0).setPrimary(true);
         }
     }
 
     @Transactional
     public BandFullResponse addBand(BandRegistrationRequest dto) {
-        if(dto.name() == null || dto.name().isBlank()) {
+        if (dto.name() == null || dto.name().isBlank()) {
             throw new NotBlankException("Il nome della band non può essere vuoto");
         }
         Band band = bandMapper.toEntity(dto);
@@ -71,14 +78,13 @@ public class BandService {
 
         bandMapper.updateBandFromDto(dto, band);
 
-        if(dto.photos()!= null){
+        if (dto.photos() != null) {
             band.getPhotos().clear();
-            for (PhotoRequest photoRequest : dto.photos()){
+            for (PhotoRequest photoRequest : dto.photos()) {
                 Photo photo = new Photo();
                 photo.setSource(photoRequest.source());
                 photo.setPrimary(photoRequest.isPrimary());
-                photo.setBand(band);
-                band.getPhotos().add(photo);
+                band.addPhoto(photo);
             }
             validatePrimaryPhoto(band.getPhotos());
         }
@@ -88,9 +94,10 @@ public class BandService {
         bandRepository.save(band);
         return bandMapper.toFullResponse(band);
     }
+
     @Transactional
     public void deleteBand(Long id) {
-        if(!bandRepository.existsById(id)) {
+        if (!bandRepository.existsById(id)) {
             throw new BandNonTrovataException("Band non trovata");
         }
         bandRepository.deleteById(id);
@@ -104,19 +111,20 @@ public class BandService {
     public List<BandMemberResponse> getBandMembers(Long id) {
         Band band = bandRepository.findById(id)
                 .orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
-        
+
         List<Long> memberIds = band.getMembers().stream()
                 .map(User::getId)
                 .toList();
 
         return bandMapper.mapMemberIdsToResponses(memberIds);
     }
+
     public BandMemberResponse getBandMemberSummary(Long bandId, Long memberId) {
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
-        if(!band.getMembers().contains(memberId)) {
+        if (!band.getMembers().contains(memberId)) {
             throw new MembroNonTrovatoException("Membro non trovato nella band");
         }
-        List <BandMemberResponse> members = bandMapper.mapMemberIdsToResponses(List.of(memberId));
+        List<BandMemberResponse> members = bandMapper.mapMemberIdsToResponses(List.of(memberId));
         if (members.isEmpty()) {
             throw new MembroNonTrovatoException("Membro non trovato");
         }
@@ -131,6 +139,7 @@ public class BandService {
         band.addUser(user);
         bandRepository.save(band);
     }
+
     @Transactional
     public void removeBandMember(Long bandId, Long memberId) { //metodo per rimuovere un membro di una band tramite id
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
@@ -140,8 +149,6 @@ public class BandService {
 
 
     }
-
-
 
 
 }
