@@ -11,6 +11,7 @@ import org.spring.profileservice.repository.GenreRepository;
 import org.spring.profileservice.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.spring.profileservice.exception.AccessDeniedException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -170,7 +171,8 @@ public class BandService {
      * Consente aggiungere un membro alla band
      */
     @Transactional
-    public void addBandMember(Long bandId, Long memberId) {// metodo per aggiungere un membro di una band tramite id
+    public void addBandMember(Long bandId, Long memberId, Long userId) {// metodo per aggiungere un membro di una band tramite id
+        validateUser(userId,bandId);
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
         User user = userRepository.findById(memberId).orElseThrow(() -> new UserNotFoundException(("Utente non trovato")));
         band.addUser(user);
@@ -181,14 +183,31 @@ public class BandService {
      */
 
     @Transactional
-    public void removeBandMember(Long bandId, Long memberId) { //metodo per rimuovere un membro di una band tramite id
+    public void removeBandMember(Long bandId, Long memberId,Long userId) { //metodo per rimuovere un membro di una band tramite id
+        validateUser(userId,bandId);
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
         User user = userRepository.findById(memberId).orElseThrow(() -> new UserNotFoundException(("Utente non trovato")));
         band.removeUser(user);
         bandRepository.save(band);
+        if (band.getMembers().isEmpty()){
+            bandRepository.delete(band);
+        }
+    }
 
+    public void validateUser(Long userId, Long bandId) {
+        // Cerco l'utente e la band. Se non esistono, lancio subito l'eccezione.
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User non trovato"));
 
+        Band band = bandRepository.findById(bandId)
+                .orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
+
+        // Verifico l'appartenenza
+        if (!band.getMembers().contains(user)) {
+            throw new AccessDeniedException("Accesso non autorizzato: non sei un membro di questa band");
+        }
+        // Se arriviamo qui, l'utente è validato
     }
 
 
-}
+    }
