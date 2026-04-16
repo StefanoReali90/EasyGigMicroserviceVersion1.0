@@ -49,6 +49,7 @@ public class BandService {
 
 
     }
+
     /**
      * Garantisce l'integrità della foto principale:
      * 1. Se ci sono troppe foto primarie, mantiene solo la prima trovata.
@@ -69,6 +70,12 @@ public class BandService {
         }
     }
 
+    /**
+     * Consente di aggiungiere una band dopo la registrazione dell'utente
+     * 1. Verifica se il nome non è vuoto
+     * 2. Crea un entity Band con le informazioni
+     * 3. Salva nel db le informazioni e ritorna la risposta
+     */
     @Transactional
     public BandFullResponse addBand(BandRegistrationRequest dto) {
         if (dto.name() == null || dto.name().isBlank()) {
@@ -80,6 +87,11 @@ public class BandService {
         return bandMapper.toFullResponse(band);
     }
 
+    /**
+     * Consente di aggiornare una band tramite id
+     * 1. Verifica se l'id esiste
+     * 2. Salva nel db le informazioni e ritorna la risposta
+     */
     @Transactional
     public BandFullResponse updateBand(BandRegistrationRequest dto, Long id) {
         Band band = bandRepository.findById(id)
@@ -104,6 +116,11 @@ public class BandService {
         return bandMapper.toFullResponse(band);
     }
 
+    /**
+     * Consente di cancellare una band tramite id
+     * 1. Verifica se l'id esiste
+     * 3. Cancella dal db la band
+     */
     @Transactional
     public void deleteBand(Long id) {
         if (!bandRepository.existsById(id)) {
@@ -112,11 +129,17 @@ public class BandService {
         bandRepository.deleteById(id);
     }
 
+    /**
+     * Consente di ricercare una band per id
+     */
     public BandSearchResponse getBand(Long id) {
         Band band = bandRepository.findById(id).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
         return bandMapper.toSearchResponse(band);
     }
 
+    /**
+     * Consente di ricercare una band con l'id di uno dei membri
+     */
     public List<BandMemberResponse> getBandMembers(Long id) {
         Band band = bandRepository.findById(id)
                 .orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
@@ -128,6 +151,9 @@ public class BandService {
         return bandMapper.mapMemberIdsToResponses(memberIds);
     }
 
+    /**
+     * Consente di ricercare una band per id
+     */
     public BandMemberResponse getBandMemberSummary(Long bandId, Long memberId) {
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
         if (!band.getMembers().contains(memberId)) {
@@ -140,7 +166,9 @@ public class BandService {
         return members.get(0);
 
     }
-
+    /**
+     * Consente aggiungere un membro alla band
+     */
     @Transactional
     public void addBandMember(Long bandId, Long memberId) {// metodo per aggiungere un membro di una band tramite id
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
@@ -148,6 +176,9 @@ public class BandService {
         band.addUser(user);
         bandRepository.save(band);
     }
+    /**
+     * Consente di rimuovere un membro dalla band
+     */
 
     @Transactional
     public void removeBandMember(Long bandId, Long memberId) { //metodo per rimuovere un membro di una band tramite id
