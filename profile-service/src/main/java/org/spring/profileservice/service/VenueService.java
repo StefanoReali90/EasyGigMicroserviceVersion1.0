@@ -1,12 +1,10 @@
 package org.spring.profileservice.service;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.spring.profileservice.dto.VenueRequest;
-import org.spring.profileservice.dto.VenueResponse;
-import org.spring.profileservice.entity.Address;
-import org.spring.profileservice.entity.City;
-import org.spring.profileservice.entity.User;
-import org.spring.profileservice.entity.Venue;
+import org.spring.profileservice.dto.*;
+import org.spring.profileservice.entity.*;
+import org.spring.profileservice.exception.BandNonTrovataException;
 import org.spring.profileservice.exception.CityNotFoundException;
 import org.spring.profileservice.exception.DirectorNotFoundException;
 import org.spring.profileservice.exception.VenueNotFoundException;
@@ -14,8 +12,10 @@ import org.spring.profileservice.mapper.VenueMapper;
 import org.spring.profileservice.repository.CityRepository;
 import org.spring.profileservice.repository.UserRepository;
 import org.spring.profileservice.repository.VenueRepository;
+import org.spring.profileservice.utility.PhotoTool;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -29,6 +29,8 @@ public class VenueService {
     private final CityRepository cityRepository;
 
     private final VenueMapper venueMapper;
+
+    private final PhotoTool photoTool;
 
     public VenueResponse createVenue(VenueRequest venueRequest) {
         User director = userRepository.findById(venueRequest.directorId())
@@ -88,6 +90,24 @@ public class VenueService {
         return venues.stream()
                 .map(venueMapper::toResponse)
                 .toList();
+    }
+
+    @Transactional
+    public void addPhotoToVenue(VenueRequest dto, Long id) {
+        Venue venue = venueRepository.findById(id)
+                .orElseThrow(() -> new VenueNotFoundException("Location non trovata"));
+
+        if (dto.photos() != null) {
+            for (PhotoRequest photoRequest : dto.photos()) {
+                Photo photo = new Photo();
+                photo.setSource(photoRequest.source());
+                photo.setPrimary(photoRequest.isPrimary());
+                venue.addPhoto(photo);
+            }
+            photoTool.validatePrimaryPhoto(venue.getPhotos());
+
+            venueRepository.save(venue);
+        }
     }
 
 }

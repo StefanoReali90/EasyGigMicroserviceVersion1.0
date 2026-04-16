@@ -9,6 +9,7 @@ import org.spring.profileservice.repository.BandRepository;
 import org.spring.profileservice.repository.CityRepository;
 import org.spring.profileservice.repository.GenreRepository;
 import org.spring.profileservice.repository.UserRepository;
+import org.spring.profileservice.utility.PhotoTool;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.spring.profileservice.exception.AccessDeniedException;
@@ -25,6 +26,7 @@ public class BandService {
     private final GenreRepository genreRepository; //repository dei generi musicali
     private final CityRepository cityRepository; //repository delle città
     private final UserRepository userRepository; //repository degli utenti
+    private final PhotoTool photoTool;
 
     /**
      * Associa la città e aggiorna i generi musicali della band,
@@ -51,25 +53,6 @@ public class BandService {
 
     }
 
-    /**
-     * Garantisce l'integrità della foto principale:
-     * 1. Se ci sono troppe foto primarie, mantiene solo la prima trovata.
-     * 2. Se non ce n'è nessuna, imposta la prima della lista come primaria.
-     */
-    private void validatePrimaryPhoto(List<Photo> photos) {
-        long primaryCount = photos.stream().filter(Photo::isPrimary).count(); //salvo il conteggio delle foto
-        if (primaryCount > 1) { //se il conteggio è meggio di 1
-            boolean foundFirst = false; //setto la variabile foundFIrst a false
-            for (Photo photo : photos) {//itero sulle foto
-                if (photo.isPrimary()) {//per ogni foto verifico se sia la foto primaria
-                    if (foundFirst) photo.setPrimary(false); //se non è primaria setto a false
-                    else foundFirst = true; //altrimenti setto a true
-                }
-            }
-        } else if (primaryCount == 0 && !photos.isEmpty()) { //Caso: nessuna foto primaria. Imposta di default la prima della lista.
-            photos.get(0).setPrimary(true);
-        }
-    }
 
     /**
      * Consente di aggiungiere una band dopo la registrazione dell'utente
@@ -108,7 +91,7 @@ public class BandService {
                 photo.setPrimary(photoRequest.isPrimary());
                 band.addPhoto(photo);
             }
-            validatePrimaryPhoto(band.getPhotos());
+            photoTool.validatePrimaryPhoto(band.getPhotos());
         }
 
         populateCityAndGenres(band, dto);
