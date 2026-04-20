@@ -13,8 +13,12 @@ import org.spring.profileservice.exception.InvalidTokenException;
 import org.spring.profileservice.exception.UserNotFoundException;
 import org.spring.profileservice.mapper.AccountStatusMapper;
 import org.spring.profileservice.mapper.UserMapper;
+import org.spring.profileservice.repository.StateAccountRepository;
 import org.spring.profileservice.repository.UserRepository;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +30,7 @@ public class UserService {
     private final InvitationService invitationService;
     private final JwtService jwtService;
     private final AccountStatusMapper accountStatusMapper;
+    private final StateAccountRepository stateAccountRepository;
 
     @Transactional
     public UserResponse registerUser(UserRegistrationRequest request, String token) {
@@ -76,6 +81,37 @@ public class UserService {
         User user = userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("User non trovato"));
         StateAccount stateAccount = user.getStateAccount();
         return accountStatusMapper.toResponse(stateAccount);
+    }
+    @Transactional
+    public void addStrikes(Long id) {
+        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User non trovato"));
+        StateAccount stateAccount = user.getStateAccount();
+        stateAccount.setStrikes(stateAccount.getStrikes() + 1);
+        if (stateAccount.getStrikes() >= 3) {
+            stateAccount.setBanned(true);
+            if (stateAccount.getLastBanDate() != null) {
+
+                stateAccount.setBanUntil(LocalDate.now().plusDays(14));
+            } else {
+                stateAccount.setBanned(true);
+                stateAccount.setBanUntil(LocalDate.now().plusDays(7));
+            }
+            stateAccount.setLastBanDate(LocalDateTime.now());
+
+
+        }
+        stateAccountRepository.save(stateAccount);
+    }
+    @Transactional
+    public void resetStrikes(Long id){
+        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User non trovato"));
+        StateAccount stateAccount = user.getStateAccount();
+        if(stateAccount.getBanUntil() != null && !stateAccount.getBanUntil().isAfter(LocalDate.now())){
+            stateAccount.setStrikes(0);
+            stateAccount.setBanned(false);
+            stateAccount.setBanUntil(null);
+        }
+
     }
 
 

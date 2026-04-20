@@ -1,9 +1,11 @@
 package org.spring.profileservice.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.mapstruct.control.MappingControl;
 import org.spring.profileservice.dto.UserRegistrationRequest;
 import org.spring.profileservice.dto.UserResponse;
 import org.spring.profileservice.dto.UserUpdateRequest;
+import org.spring.profileservice.repository.StateAccountRepository;
 import org.spring.profileservice.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -12,10 +14,12 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(path="/users")
+
 public class UserController {
 
     @Autowired
     private UserService userService;
+
 
     @PostMapping(value = "/", consumes = "application/json")
     public ResponseEntity<UserResponse> registerUser(@RequestBody UserRegistrationRequest request, @RequestParam String token){
@@ -35,5 +39,18 @@ public class UserController {
     @DeleteMapping(path= "{id}")
     public void deleteUser(@PathVariable Long id){
         userService.deleteUser(id);
+    }
+
+
+    @PatchMapping(value =("/{id}/strikes/add"))
+    public ResponseEntity<Void> addStrikes(@PathVariable Long id){
+        userService.addStrikes(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping(path=("/{id}/strikes/reset"))
+    public ResponseEntity<Void> resetStrikes(@PathVariable Long id){
+        userService.resetStrikes(id);
+        return ResponseEntity.ok().build();
     }
 }
