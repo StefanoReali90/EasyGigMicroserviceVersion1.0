@@ -15,6 +15,7 @@ import org.spring.profileservice.mapper.AccountStatusMapper;
 import org.spring.profileservice.mapper.UserMapper;
 import org.spring.profileservice.repository.StateAccountRepository;
 import org.spring.profileservice.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -31,6 +32,7 @@ public class UserService {
     private final JwtService jwtService;
     private final AccountStatusMapper accountStatusMapper;
     private final StateAccountRepository stateAccountRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public UserResponse registerUser(UserRegistrationRequest request, String token) {
@@ -43,7 +45,7 @@ public class UserService {
             throw new EmailGiaEsistenteException("E-mail già esistente");
         }
         User user = userMapper.toEntity(request);
-        user.setPasswordHash("BCRYPT_SIMULATED_" + request.password());
+        user.setPasswordHash(passwordEncoder.encode (request.password()));
         StateAccount state = new StateAccount();
         user.setStateAccount(state);
         User savedUser = userRepository.save(user);
@@ -57,7 +59,7 @@ public class UserService {
         User user = userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("Utente non trovato"));
         userMapper.updateUserFromDto(request,user);
         if(request.password() != null && !request.password().isBlank() ){
-            user.setPasswordHash("BCRYPT_SIMULATED_" + request.password());
+            user.setPasswordHash(passwordEncoder.encode(request.password()));
         }
         return userMapper.toResponse(userRepository.save(user));
 
