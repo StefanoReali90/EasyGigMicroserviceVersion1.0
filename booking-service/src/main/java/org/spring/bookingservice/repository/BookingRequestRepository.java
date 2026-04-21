@@ -12,4 +12,7 @@ import java.util.List;
 public interface BookingRequestRepository extends JpaRepository<BookingRequest,Long> {
 
     List<BookingRequest> findByStatusAndCreatedAtBefore(BookingSlotState status, LocalDateTime dateTime);
+    List<BookingRequest> findBySlotIdAndStatusAndIdNot(Long slotId, BookingSlotState status, Long idToExclude);
+
+    int countBySlotIdAndStatusAndIdNot(Long id, BookingSlotState bookingSlotState, Long bookingRequestId);
 }

@@ -1,7 +1,7 @@
 package org.spring.bookingservice.utility;
 
 public enum SlotState {
-    AVALIABLE,
-    NEGOTIATING,
+    AVAILABLE,
+    PENDING,
     BOOKED
 }

@@ -20,20 +20,22 @@ public class BookingRequest {
 
     private Long UserId;
 
-    private LocalDateTime creationDate = LocalDateTime.now();
+    private Long venueId;
+
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     private LocalDateTime expirationDate =LocalDateTime.now()
     .plusDays(5);
 
     @Enumerated(EnumType.STRING)
-    private BookingSlotState state;
+    private BookingSlotState status;
 
 
     @PrePersist
     protected void onCreate() {
-        this.creationDate = LocalDateTime.now();
-        this.expirationDate = this.creationDate.plusDays(5);
-        this.state = BookingSlotState.PENDING;
+        this.createdAt = LocalDateTime.now();
+        this.expirationDate = this.createdAt.plusDays(5);
+        this.status = BookingSlotState.PENDING;
     }
 
     @OneToMany(mappedBy = "bookingRequest", cascade = CascadeType.ALL)
