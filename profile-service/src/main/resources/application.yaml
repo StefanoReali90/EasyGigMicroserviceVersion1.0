@@ -19,13 +19,16 @@ eureka:
   instance:
     prefer-ip-address: true
 
-app:
+application:
   frontend:
     url: http://localhost:3000/register
   invitation:
     expiry-days: 7
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET_KEY}
 
-kafka:
+spring.kafka:
   bootstrap-servers: localhost:9092
   producer:
     key-serializer: org.apache.kafka.common.serialization.StringSerializer

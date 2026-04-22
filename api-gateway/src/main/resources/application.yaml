@@ -8,20 +8,50 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true # Permette al gateway di trovare i servizi su Eureka
-          lower-case-service-id: true # Converte i nomi in minuscolo (es: PROFILE-SERVICE -> profile-service)
+          enabled: true
+          lower-case-service-id: true
       routes:
-        # Esempio di rotta per il Profile Service
-        - id: profile-service
-          uri: lb://profile-service # "lb" sta per Load Balancer (usa Eureka)
+        # --- PROFILE SERVICE ---
+        # Rotta pubblica: registrazione utenti (nessun token richiesto)
+        - id: profile-service-users
+          uri: lb://profile-service
           predicates:
-            - Path=/api/profiles/**
+            - Path=/users/**
+          filters:
+            - AuthenticationFilter
 
-        # Esempio di rotta per il Booking Service
-        - id: booking-service
+        # Rotta protetta: gestione venues
+        - id: profile-service-venues
+          uri: lb://profile-service
+          predicates:
+            - Path=/venues/**
+          filters:
+            - AuthenticationFilter
+
+        # Rotta protetta: gestione bands
+        - id: profile-service-bands
+          uri: lb://profile-service
+          predicates:
+            - Path=/bands/**
+          filters:
+            - AuthenticationFilter
+
+        # --- BOOKING SERVICE ---
+        # Rotta protetta: prenotazioni (richiede token)
+        - id: booking-service-bookings
           uri: lb://booking-service
           predicates:
-            - Path=/api/bookings/**
+            - Path=/bookings/**
+          filters:
+            - AuthenticationFilter
+
+        # Rotta protetta: gestione slot e calendario
+        - id: booking-service-slots
+          uri: lb://booking-service
+          predicates:
+            - Path=/slots/**
+          filters:
+            - AuthenticationFilter
 
 eureka:
   instance:
@@ -29,4 +59,10 @@ eureka:
     lease-expiration-duration-in-seconds: 10
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka # Si registra su Eureka
+      defaultZone: http://localhost:8761/eureka
+
+# Chiave segreta JWT: DEVE essere identica a quella del profile-service!
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET_KEY}
