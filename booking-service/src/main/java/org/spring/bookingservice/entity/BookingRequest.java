@@ -3,6 +3,7 @@ package org.spring.bookingservice.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.spring.bookingservice.utility.BookingSlotState;
+import org.spring.bookingservice.utility.RequesterType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +36,13 @@ public class BookingRequest {
 
     @Enumerated(EnumType.STRING)
     private BookingSlotState status;
+
+    private String groupId;
+
+    private Long bandId;
+
+    @Enumerated(EnumType.STRING)
+    private RequesterType requesterType;
 
 
     @PrePersist

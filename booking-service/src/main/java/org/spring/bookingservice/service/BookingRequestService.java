@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.spring.bookingservice.dto.BookingCanceledEvent;
 import org.spring.bookingservice.dto.BookingRequestDTO;
 import org.spring.bookingservice.dto.BookingResponse;
+import org.spring.bookingservice.dto.CreatePromoterBookingDTO;
 import org.spring.bookingservice.entity.BookingRequest;
 import org.spring.bookingservice.entity.Slot;
 import org.spring.bookingservice.exception.*;
@@ -11,11 +12,14 @@ import org.spring.bookingservice.mapper.BookingMapper;
 import org.spring.bookingservice.repository.BookingRequestRepository;
 import org.spring.bookingservice.repository.SlotRepository;
 import org.spring.bookingservice.utility.BookingSlotState;
+import org.spring.bookingservice.utility.RequesterType;
 import org.spring.bookingservice.utility.SlotState;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -56,7 +60,7 @@ public class BookingRequestService {
         bookingRequest.setStatus(BookingSlotState.ACCEPTED);
         slot.setState(SlotState.BOOKED);
         slotRepository.save(slot);
-        
+
         List<BookingRequest> otherRequests = bookingRequestRepository.findBySlotIdAndStatusAndIdNot(slot.getId(), BookingSlotState.PENDING, bookingRequestId);
         for (BookingRequest other : otherRequests) {
             other.setStatus(BookingSlotState.REJECTED);
@@ -74,18 +78,18 @@ public class BookingRequestService {
         }
         Slot slot = bookingRequest.getSlot();
         LocalDateTime dataAttuale = LocalDateTime.now();
-        if (dataAttuale.isAfter(slot.getStart().minusDays(2))){
+        if (dataAttuale.isAfter(slot.getStart().minusDays(2))) {
             throw new SlotNotBeCancelledException("Non puoi cancellare questa prenotazione, tempo massimo superato");
         }
         bookingRequest.setStatus(BookingSlotState.CANCELED);
         if (slot.getState() == SlotState.BOOKED) {
             slot.setState(SlotState.AVAILABLE);
 
-        }else{
+        } else {
             int otherRequestInPending = bookingRequestRepository.countBySlotIdAndStatusAndIdNot(slot.getId(), BookingSlotState.PENDING, bookingRequestId);
-            if(otherRequestInPending == 0){
+            if (otherRequestInPending == 0) {
                 slot.setState(SlotState.AVAILABLE);
-            }else{
+            } else {
                 slot.setState(SlotState.PENDING);
             }
         }
@@ -113,11 +117,11 @@ public class BookingRequestService {
         bookingRequest.setStatus(BookingSlotState.CANCELED);
         if (slot.getState() == SlotState.BOOKED) {
             slot.setState(SlotState.AVAILABLE);
-        }else{
+        } else {
             int otherRequestInPending = bookingRequestRepository.countBySlotIdAndStatusAndIdNot(slot.getId(), BookingSlotState.PENDING, bookingRequestId);
-            if(otherRequestInPending == 0){
+            if (otherRequestInPending == 0) {
                 slot.setState(SlotState.AVAILABLE);
-            }else{
+            } else {
                 slot.setState(SlotState.PENDING);
             }
         }
@@ -135,14 +139,15 @@ public class BookingRequestService {
         bookingProducer.sendCanceledEvent(event);
         return bookingMapper.toBookingResponse(bookingRequest);
     }
-    public BookingResponse rejectRequest(Long userId,Long bookingRequestId){
+
+    public BookingResponse rejectRequest(Long userId, Long bookingRequestId) {
         BookingRequest bookingRequest = bookingRequestRepository
                 .findById(bookingRequestId)
                 .orElseThrow(() -> new BookingRequestNotFound("Booking Request non trovato"));
         if (!bookingRequest.getVenueId().equals(userId)) {
             throw new SlotNotBeCancelledException("Non puoi rifiutare questa prenotazione, non sei autorizzato");
         }
-        if(bookingRequest.getStatus() != BookingSlotState.PENDING){
+        if (bookingRequest.getStatus() != BookingSlotState.PENDING) {
             throw new SlotNotBeCancelledException("Questa prenotazione non è più in attesa di risposta");
         }
         bookingRequest.setStatus(BookingSlotState.REJECTED);
@@ -153,5 +158,44 @@ public class BookingRequestService {
         slotRepository.save(slot);
         bookingRequestRepository.save(bookingRequest);
         return bookingMapper.toBookingResponse(bookingRequest);
+    }
+
+    public List<BookingResponse> createPromoterBooking(CreatePromoterBookingDTO createPromoterBookingDTO) {
+        Long promoterId = createPromoterBookingDTO.promoterId();
+        Long venueId = createPromoterBookingDTO.venueId();
+        List<Long> slotIds = createPromoterBookingDTO.slotIds();
+        List<Long> bandIds = createPromoterBookingDTO.bandIds();
+
+        if (slotIds.size() != bandIds.size()) {
+            throw new BookingNotAllowedException("Il numero di slot e band deve essere lo stesso");
+        }
+        String groupId = UUID.randomUUID().toString();
+        List<BookingRequest> savedRequests = new ArrayList<>();
+
+        for (int i = 0; i < slotIds.size(); i++) {
+            Slot slot = slotRepository.findById(slotIds.get(i))
+                    .orElseThrow(() -> new SlotNotFoundException("Slot non trovato"));
+            if (slot.getState() == SlotState.BOOKED) {
+                throw new SlotAlredyBookedException("Slot " + slot.getId() + " non è disponibile");
+            }
+            if (LocalDateTime.now().isAfter(slot.getStart().minusDays(2))) {
+                throw new BookingNotAllowedException("Slot " + slot.getId() + " non può essere prenotato, tempo massimo superato");
+            }
+            BookingRequest bookingRequest = new BookingRequest();
+            bookingRequest.setUserId(promoterId);
+            bookingRequest.setSlot(slot);
+            bookingRequest.setVenueId(venueId);
+            bookingRequest.setBandId(bandIds.get(i));
+            bookingRequest.setGroupId(groupId);
+            bookingRequest.setRequesterType(RequesterType.PROMOTER);
+            slot.setState(SlotState.PENDING);
+            slotRepository.save(slot);
+            savedRequests.add(bookingRequestRepository.save(bookingRequest));
+
+        }
+        return savedRequests.stream()
+                .map(bookingMapper::toBookingResponse)
+                .toList();
+
     }
 }

@@ -4,10 +4,13 @@ import lombok.RequiredArgsConstructor;
 import org.spring.bookingservice.dto.BookingRequestDTO;
 import org.spring.bookingservice.dto.BookingResponse;
 import org.spring.bookingservice.dto.CancelBookingRequestDTO;
+import org.spring.bookingservice.dto.CreatePromoterBookingDTO;
 import org.spring.bookingservice.service.BookingRequestService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/bookings")
@@ -23,6 +26,13 @@ public class BookingRequestController {
     @PostMapping
     public ResponseEntity<BookingResponse> createBookingRequest(@RequestBody BookingRequestDTO requestDTO) {
         BookingResponse response = bookingRequestService.createRequest(requestDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/promoter")
+    public ResponseEntity<List<BookingResponse>> createPromoterBooking(
+            @RequestBody CreatePromoterBookingDTO dto) {
+        List<BookingResponse> response = bookingRequestService.createPromoterBooking(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -75,4 +85,6 @@ public class BookingRequestController {
         BookingResponse response = bookingRequestService.cancelRequestByVenue(cancelDTO.userId(), bookingRequestId, cancelDTO.reason());
         return ResponseEntity.ok(response);
     }
+
+
 }
