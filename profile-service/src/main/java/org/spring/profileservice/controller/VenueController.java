@@ -4,6 +4,7 @@ import org.spring.profileservice.dto.VenueRequest;
 import org.spring.profileservice.dto.VenueResponse;
 import org.spring.profileservice.service.VenueService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,7 +20,7 @@ public class VenueController {
     @PostMapping(path="/", consumes = "application/json", produces = "application/json")
     public ResponseEntity<VenueResponse> createVenue(@RequestBody VenueRequest venueRequest) {
         VenueResponse response = venueService.createVenue(venueRequest);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping(path="/{venueId}", consumes = "application/json", produces = "application/json")
@@ -29,8 +30,9 @@ public class VenueController {
     }
 
     @DeleteMapping(path = "/{venueId}")
-    public void deleteVenue(@PathVariable("venueId") Long venueId) {
+    public ResponseEntity<Void> deleteVenue(@PathVariable("venueId") Long venueId) {
         venueService.deleteVenue(venueId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping(path = "/{venueId}", produces = "application/json")

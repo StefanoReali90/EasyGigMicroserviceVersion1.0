@@ -37,20 +37,21 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
     @DeleteMapping(path= "{id}")
-    public void deleteUser(@PathVariable Long id){
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id){
         userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 
 
     @PatchMapping(value =("/{id}/strikes/add"))
     public ResponseEntity<Void> addStrikes(@PathVariable Long id){
         userService.addStrikes(id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping(path=("/{id}/strikes/reset"))
     public ResponseEntity<Void> resetStrikes(@PathVariable Long id){
         userService.resetStrikes(id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }
