@@ -6,11 +6,8 @@ import org.spring.bookingservice.dto.BookingRequestDTO;
 import org.spring.bookingservice.dto.BookingResponse;
 import org.spring.bookingservice.entity.BookingRequest;
 import org.spring.bookingservice.entity.Slot;
-import org.spring.bookingservice.exception.BookingRequestNotFound;
-import org.spring.bookingservice.exception.SlotNotBeCancelledException;
+import org.spring.bookingservice.exception.*;
 import org.spring.bookingservice.mapper.BookingMapper;
-import org.spring.bookingservice.exception.SlotAlredyBookedException;
-import org.spring.bookingservice.exception.SlotNotFoundException;
 import org.spring.bookingservice.repository.BookingRequestRepository;
 import org.spring.bookingservice.repository.SlotRepository;
 import org.spring.bookingservice.utility.BookingSlotState;
@@ -35,6 +32,9 @@ public class BookingRequestService {
         Slot slot = slotRepository.findById(slotId).orElseThrow(() -> new SlotNotFoundException("Slot non trovato"));
         if (slot.getState() == SlotState.BOOKED) {
             throw new SlotAlredyBookedException("Questo Slot non è più disponbiile");
+        }
+        if (LocalDateTime.now().isAfter(slot.getStart().minusDays(2))) {
+            throw new BookingNotAllowedException("Prenotazione non consentita: mancano meno di 48 ore all'inizio dell'evento");
         }
         BookingRequest bookingRequest = new BookingRequest();
         bookingRequest.setUserId(userId);
@@ -133,6 +133,25 @@ public class BookingRequestService {
                 reason
         );
         bookingProducer.sendCanceledEvent(event);
+        return bookingMapper.toBookingResponse(bookingRequest);
+    }
+    public BookingResponse rejectRequest(Long userId,Long bookingRequestId){
+        BookingRequest bookingRequest = bookingRequestRepository
+                .findById(bookingRequestId)
+                .orElseThrow(() -> new BookingRequestNotFound("Booking Request non trovato"));
+        if (!bookingRequest.getVenueId().equals(userId)) {
+            throw new SlotNotBeCancelledException("Non puoi rifiutare questa prenotazione, non sei autorizzato");
+        }
+        if(bookingRequest.getStatus() != BookingSlotState.PENDING){
+            throw new SlotNotBeCancelledException("Questa prenotazione non è più in attesa di risposta");
+        }
+        bookingRequest.setStatus(BookingSlotState.REJECTED);
+        Slot slot = bookingRequest.getSlot();
+        int otherPending = bookingRequestRepository.countBySlotIdAndStatusAndIdNot(slot.getId(), BookingSlotState.PENDING, bookingRequestId);
+
+        slot.setState(otherPending == 0 ? SlotState.AVAILABLE : SlotState.PENDING);
+        slotRepository.save(slot);
+        bookingRequestRepository.save(bookingRequest);
         return bookingMapper.toBookingResponse(bookingRequest);
     }
 }

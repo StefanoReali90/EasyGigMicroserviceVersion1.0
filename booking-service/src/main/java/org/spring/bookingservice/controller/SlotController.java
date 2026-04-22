@@ -20,7 +20,7 @@ public class SlotController {
 
     private final SlotService slotService;
 
-    @PostMapping(value = "/", consumes = "application/json")
+    @PostMapping
     public ResponseEntity<SlotResponseDTO> createSlot(@RequestBody CreateSlotRequestDTO requestDTO) {
         SlotResponseDTO response = slotService.createSlot(requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

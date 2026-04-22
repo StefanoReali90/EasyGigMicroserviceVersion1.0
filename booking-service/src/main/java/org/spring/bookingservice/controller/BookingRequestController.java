@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.spring.bookingservice.dto.BookingRequestDTO;
 import org.spring.bookingservice.dto.BookingResponse;
 import org.spring.bookingservice.dto.CancelBookingRequestDTO;
-import org.spring.bookingservice.dto.CreateBookingRequestDTO;
 import org.spring.bookingservice.service.BookingRequestService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +17,8 @@ public class BookingRequestController {
     private final BookingRequestService bookingRequestService;
 
     /**
-     * Crea una nuova prenotazione
+     * POST /bookings
+     * Crea una nuova prenotazione. Restituisce 201 Created.
      */
     @PostMapping
     public ResponseEntity<BookingResponse> createBookingRequest(@RequestBody BookingRequestDTO requestDTO) {
@@ -27,20 +27,36 @@ public class BookingRequestController {
     }
 
     /**
-     * Accetta una prenotazione
+     * PATCH /bookings/{id}/accept
+     * Modifica parzialmente lo stato della prenotazione -> ACCEPTED.
+     * userId nel body perché è identità dell'attore, non un filtro di ricerca.
      */
-    @PutMapping("/{bookingRequestId}/accept")
+    @PatchMapping("/{bookingRequestId}/accept")
     public ResponseEntity<BookingResponse> acceptRequest(
             @PathVariable Long bookingRequestId,
-            @RequestParam Long userId) { 
-        BookingResponse response = bookingRequestService.acceptRequest(userId, bookingRequestId);
+            @RequestBody CancelBookingRequestDTO acceptDTO) {
+        BookingResponse response = bookingRequestService.acceptRequest(acceptDTO.userId(), bookingRequestId);
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Cancella una prenotazione lato UTENTE
+     * PATCH /bookings/{id}/reject
+     * Modifica parzialmente lo stato della prenotazione -> REJECTED.
+     * Non richiede motivazione per requisito di business.
      */
-    @PutMapping("/{bookingRequestId}/cancel-user")
+    @PatchMapping("/{bookingRequestId}/reject")
+    public ResponseEntity<BookingResponse> rejectRequest(
+            @PathVariable Long bookingRequestId,
+            @RequestBody CancelBookingRequestDTO rejectDTO) {
+        BookingResponse response = bookingRequestService.rejectRequest(rejectDTO.userId(), bookingRequestId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * PATCH /bookings/{id}/cancel-user
+     * Cancellazione da parte dell'utente. Motivazione obbligatoria.
+     */
+    @PatchMapping("/{bookingRequestId}/cancel-user")
     public ResponseEntity<BookingResponse> cancelRequestByUser(
             @PathVariable Long bookingRequestId,
             @RequestBody CancelBookingRequestDTO cancelDTO) {
@@ -49,9 +65,10 @@ public class BookingRequestController {
     }
 
     /**
-     * Cancella una prenotazione lato LOCALE (VENUE)
+     * PATCH /bookings/{id}/cancel-venue
+     * Cancellazione da parte del locale. Motivazione obbligatoria.
      */
-    @PutMapping("/{bookingRequestId}/cancel-venue")
+    @PatchMapping("/{bookingRequestId}/cancel-venue")
     public ResponseEntity<BookingResponse> cancelRequestByVenue(
             @PathVariable Long bookingRequestId,
             @RequestBody CancelBookingRequestDTO cancelDTO) {
