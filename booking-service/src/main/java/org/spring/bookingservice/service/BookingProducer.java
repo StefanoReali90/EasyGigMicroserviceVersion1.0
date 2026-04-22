@@ -23,5 +23,8 @@ public class BookingProducer {
     public void sendCanceledEvent(BookingCanceledEvent event) {
         kafkaTemplate.send("booking-canceled-topic", event);
     }
+    public void sendReviewEvent(org.spring.bookingservice.dto.ReviewCreatedEvent event) {
+        kafkaTemplate.send("review-created-topic", event);
+    }
 
 }

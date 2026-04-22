@@ -111,18 +111,24 @@ public class VenueService {
         }
     }
 
-    public List<VenueResponse> searchVenuesByCity(String city) {
-        List<Venue> venues = venueRepository.findByAddressCityNameIgnoreCase(city);
-        if (venues.isEmpty()) {
-            throw new CityNotFoundException("Nessuna location trovata per la città: " + city);
+    public List<VenueResponse> searchVenues(String city, boolean sortByReputation) {
+        List<Venue> venues;
+        if (city != null && !city.isBlank()) {
+            if (sortByReputation) {
+                venues = venueRepository.findByAddressCityNameIgnoreCaseOrderByDirectorReputationDesc(city);
+            } else {
+                venues = venueRepository.findByAddressCityNameIgnoreCase(city);
+            }
+        } else {
+            if (sortByReputation) {
+                venues = venueRepository.findAllByOrderByDirectorReputationDesc();
+            } else {
+                venues = venueRepository.findAll();
+            }
         }
-        List<VenueResponse> responses = new ArrayList<>();
-        for (Venue venue : venues) {
-            responses.add(venueMapper.toResponse(venue));
-
-        }
-        return responses;
-
+        return venues.stream()
+                .map(venueMapper::toResponse)
+                .toList();
     }
 }
 

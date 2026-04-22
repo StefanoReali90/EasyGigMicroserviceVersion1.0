@@ -9,5 +9,7 @@ import java.util.List;
 public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findByDirectorId(Long directorId);
     List<Venue> findByAddressCityNameIgnoreCase(String cityName);
+    List<Venue> findByAddressCityNameIgnoreCaseOrderByDirectorReputationDesc(String cityName);
+    List<Venue> findAllByOrderByDirectorReputationDesc();
 
 }

@@ -41,18 +41,10 @@ public class VenueController {
         return ResponseEntity.ok(response);
     }
     @GetMapping(produces = "application/json")
-    public ResponseEntity<List<VenueResponse>> getVenues(@RequestParam(required = false) String city) {
-
-        List<VenueResponse> response;
-
-        if (city != null && !city.isBlank()) {
-
-            response = venueService.searchVenuesByCity(city);
-        } else {
-            
-            response = venueService.getAllVenue();
-        }
-
+    public ResponseEntity<List<VenueResponse>> getVenues(
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false, defaultValue = "false") boolean sortByReputation) {
+        List<VenueResponse> response = venueService.searchVenues(city, sortByReputation);
         return ResponseEntity.ok(response);
     }
 }

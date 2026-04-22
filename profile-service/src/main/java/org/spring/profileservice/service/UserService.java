@@ -116,6 +116,17 @@ public class UserService {
 
     }
 
+    public void updateReputation(Long userId, int newRate) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Utente non trovato"));
+        Double oldReputation = user.getReputation();
+        Integer reviewCount = user.getReviewCount();
+        Double newReputation = ((oldReputation * reviewCount) + newRate) / (reviewCount + 1);
+        user.setReputation(Math.round(newReputation * 10.0) / 10.0);
+        user.setReviewCount(reviewCount + 1);
+        userRepository.save(user);
+    }
+
 
 
 

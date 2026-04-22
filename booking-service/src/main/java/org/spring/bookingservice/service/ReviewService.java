@@ -2,6 +2,7 @@ package org.spring.bookingservice.service;
 
 import lombok.RequiredArgsConstructor;
 import org.spring.bookingservice.dto.CreateReviewDTO;
+import org.spring.bookingservice.dto.ReviewCreatedEvent;
 import org.spring.bookingservice.dto.ReviewResponseDTO;
 import org.spring.bookingservice.entity.BookingRequest;
 import org.spring.bookingservice.entity.Event;
@@ -22,6 +23,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final BookingRequestRepository bookingRequestRepository;
     private final ReviewMapper reviewMapper;
+    private final BookingProducer bookingProducer;
 
     public ReviewResponseDTO createReview(CreateReviewDTO createReviewDTO) {
         Long reviewedId = createReviewDTO.reviewedId();
@@ -59,6 +61,8 @@ public class ReviewService {
         review.setRole(createReviewDTO.role());
 
         reviewRepository.save(review);
+        ReviewCreatedEvent eventsend = new ReviewCreatedEvent(reviewedId, rate);
+        bookingProducer.sendReviewEvent(eventsend);
 
         return reviewMapper.toReviewResponseDTO(review);
 
