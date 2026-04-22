@@ -3,6 +3,8 @@ package org.spring.bookingservice.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Data
 public class Review {
@@ -14,12 +16,16 @@ public class Review {
     private Long reviewerId;
 
     private Long reviewedId;
-
+    @Column(nullable = false)
     private int rate;
-
+    @Column(nullable = false)
     private String comment;
-
+    
+    @Column(nullable = false)
     private String role;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
 
 
 

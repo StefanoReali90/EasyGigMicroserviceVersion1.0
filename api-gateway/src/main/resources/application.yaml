@@ -46,10 +46,10 @@ spring:
             - AuthenticationFilter
 
         # Rotta protetta: gestione slot e calendario
-        - id: booking-service-slots
+        - id: booking-service-reviews
           uri: lb://booking-service
           predicates:
-            - Path=/slots/**
+            - Path=/reviews/**
           filters:
             - AuthenticationFilter
 
