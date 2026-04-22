@@ -2,6 +2,7 @@ package org.spring.bookingservice.service;
 
 import lombok.RequiredArgsConstructor;
 import org.spring.bookingservice.dto.BookingCanceledEvent;
+import org.spring.bookingservice.dto.BookingRequestDTO;
 import org.spring.bookingservice.dto.BookingResponse;
 import org.spring.bookingservice.entity.BookingRequest;
 import org.spring.bookingservice.entity.Slot;
@@ -28,7 +29,9 @@ public class BookingRequestService {
     private final BookingMapper bookingMapper;
     private final BookingProducer bookingProducer;
 
-    public BookingResponse createRequest(Long userId, Long slotId) {
+    public BookingResponse createRequest(BookingRequestDTO bookingRequestDTO) {
+        Long userId = bookingRequestDTO.userId();
+        Long slotId = bookingRequestDTO.slotId();
         Slot slot = slotRepository.findById(slotId).orElseThrow(() -> new SlotNotFoundException("Slot non trovato"));
         if (slot.getState() == SlotState.BOOKED) {
             throw new SlotAlredyBookedException("Questo Slot non è più disponbiile");
