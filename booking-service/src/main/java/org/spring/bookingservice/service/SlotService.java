@@ -2,6 +2,7 @@ package org.spring.bookingservice.service;
 
 import lombok.Locked;
 import lombok.RequiredArgsConstructor;
+import org.spring.bookingservice.dto.AvailableVenuesResponseDTO;
 import org.spring.bookingservice.dto.CalendarResponseDTO;
 import org.spring.bookingservice.dto.CreateSlotRequestDTO;
 import org.spring.bookingservice.dto.SlotResponseDTO;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,5 +69,17 @@ public class SlotService {
             }
         }
         return new CalendarResponseDTO(venueId, month, year, calendarColors);
+    }
+
+    public AvailableVenuesResponseDTO getAvailableVenues(List<Long> venueIds, LocalDate date) {
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.atTime(23, 59, 59);
+
+        List<Slot> availableSlots = slotRepository.findByVenueIdInAndStartBetweenAndState(venueIds, start, end, SlotState.AVAILABLE);
+        List<Long> ids = availableSlots.stream()
+                .map(Slot::getVenueId)
+                .distinct()
+                .toList();
+        return new AvailableVenuesResponseDTO(ids);
     }
 }
