@@ -198,4 +198,21 @@ public class BookingRequestService {
                 .toList();
 
     }
+
+    public BookingResponse assignBandToSlot(Long bookingRequestId, org.spring.bookingservice.dto.AssignBandToSlotDTO dto) {
+        BookingRequest bookingRequest = bookingRequestRepository.findById(bookingRequestId)
+                .orElseThrow(() -> new BookingRequestNotFound("Booking Request non trovato"));
+
+        if (!bookingRequest.getUserId().equals(dto.promoterId())) {
+            throw new BookingNotAllowedException("Non sei autorizzato a modificare questa prenotazione");
+        }
+
+        if (bookingRequest.getStatus() != BookingSlotState.PENDING && bookingRequest.getStatus() != BookingSlotState.ACCEPTED) {
+            throw new BookingNotAllowedException("Impossibile modificare una prenotazione in stato " + bookingRequest.getStatus());
+        }
+
+        bookingRequest.setBandId(dto.bandId());
+        BookingRequest savedRequest = bookingRequestRepository.save(bookingRequest);
+        return bookingMapper.toBookingResponse(savedRequest);
+    }
 }

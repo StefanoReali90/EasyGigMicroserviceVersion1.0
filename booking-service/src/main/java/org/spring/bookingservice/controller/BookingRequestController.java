@@ -86,5 +86,11 @@ public class BookingRequestController {
         return ResponseEntity.ok(response);
     }
 
-
+    @PatchMapping("/{bookingRequestId}/assign-band")
+    public ResponseEntity<BookingResponse> assignBandToSlot(
+            @PathVariable Long bookingRequestId,
+            @RequestBody org.spring.bookingservice.dto.AssignBandToSlotDTO dto) {
+        BookingResponse response = bookingRequestService.assignBandToSlot(bookingRequestId, dto);
+        return ResponseEntity.ok(response);
+    }
 }

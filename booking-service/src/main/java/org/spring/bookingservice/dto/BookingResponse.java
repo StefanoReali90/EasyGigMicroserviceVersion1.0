@@ -10,6 +10,9 @@ public record BookingResponse(
         Long userId,
         Long venueId,
         BookingSlotState status,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String groupId,
+        Long bandId,
+        org.spring.bookingservice.utility.RequesterType requesterType
 ) {
 }
