@@ -2,6 +2,7 @@ package org.spring.notificationservice.service;
 
 import lombok.RequiredArgsConstructor;
 import org.spring.notificationservice.dto.BookingCanceledEvent;
+import org.spring.notificationservice.dto.BookingExpiredEvent;
 import org.spring.notificationservice.dto.InvitationEventDTO;
 import org.spring.notificationservice.entity.NotificationLog;
 import org.spring.notificationservice.exception.EmailSendingException;
@@ -65,5 +66,13 @@ public class NotificationConsumer {
         }catch (Exception e){
             System.err.println("Errore nell'invio della mail: "+ e.getMessage());
         }
+    }
+
+    @KafkaListener(topics = "booking-expired-topic", groupId = "notification-group")
+    public void consumeBookingExpired(BookingExpiredEvent event) {
+        String subject = "Prenotazione scaduta - Strike ricevuto";
+        String body = "Non hai risposto alla prenotazione #" + event.bookingId() +
+                " entro 5 giorni. Ti è stato assegnato uno strike.";
+        emailService.sendEmail("test@easygig.com", subject, body);
     }
 }
