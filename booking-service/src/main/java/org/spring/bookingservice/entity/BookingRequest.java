@@ -18,14 +18,20 @@ public class BookingRequest {
     @ManyToOne(fetch = FetchType.LAZY)
     private Slot slot;
 
+    @Column(nullable = false)
     private Long UserId;
 
+    @Column(nullable = false)
     private Long venueId;
 
+    @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(nullable = false)
     private LocalDateTime expirationDate =LocalDateTime.now()
     .plusDays(5);
+
+    private String cancellationReason;
 
     @Enumerated(EnumType.STRING)
     private BookingSlotState status;

@@ -1,6 +1,7 @@
 package org.spring.bookingservice.service;
 
 import lombok.RequiredArgsConstructor;
+import org.spring.bookingservice.dto.BookingCanceledEvent;
 import org.spring.bookingservice.dto.BookingResponse;
 import org.spring.bookingservice.entity.BookingRequest;
 import org.spring.bookingservice.entity.Slot;
@@ -25,6 +26,7 @@ public class BookingRequestService {
     private final BookingRequestRepository bookingRequestRepository;
     private final SlotRepository slotRepository;
     private final BookingMapper bookingMapper;
+    private final BookingProducer bookingProducer;
 
     public BookingResponse createRequest(Long userId, Long slotId) {
         Slot slot = slotRepository.findById(slotId).orElseThrow(() -> new SlotNotFoundException("Slot non trovato"));
@@ -62,10 +64,10 @@ public class BookingRequestService {
         return bookingMapper.toBookingResponse(savedRequest);
     }
 
-    public BookingResponse cancelRequestByUser(Long userId, Long bookingRequestId) {
+    public BookingResponse cancelRequestByUser(Long userId, Long bookingRequestId, String reason) {
         BookingRequest bookingRequest = bookingRequestRepository.findById(bookingRequestId).orElseThrow(() -> new BookingRequestNotFound("Booking Request non trovato"));
         if (!bookingRequest.getUserId().equals(userId)) {
-            throw new SlotNotBeCancelledException("Non puoi cancellare questa prenotazione, non sei il proprietario");
+            throw new SlotNotBeCancelledException("Non puoi cancellare questa prenotazione, non sei autorizzato");
         }
         Slot slot = bookingRequest.getSlot();
         LocalDateTime dataAttuale = LocalDateTime.now();
@@ -84,8 +86,50 @@ public class BookingRequestService {
                 slot.setState(SlotState.PENDING);
             }
         }
+        bookingRequest.setCancellationReason(reason);
         slotRepository.save(slot);
         bookingRequestRepository.save(bookingRequest);
+        BookingCanceledEvent event = new BookingCanceledEvent(
+                bookingRequest.getId(),
+                bookingRequest.getUserId(),
+                slot.getId(),
+                bookingRequest.getVenueId(),
+                "USER",
+                reason
+        );
+        bookingProducer.sendCanceledEvent(event);
+        return bookingMapper.toBookingResponse(bookingRequest);
+    }
+
+    public BookingResponse cancelRequestByVenue(Long userId, Long bookingRequestId, String reason) {
+        BookingRequest bookingRequest = bookingRequestRepository.findById(bookingRequestId).orElseThrow(() -> new BookingRequestNotFound("Booking Request non trovato"));
+        if (!bookingRequest.getVenueId().equals(userId)) {
+            throw new SlotNotBeCancelledException("Non puoi cancellare questa prenotazione, non sei autorizzato");
+        }
+        Slot slot = bookingRequest.getSlot();
+        bookingRequest.setStatus(BookingSlotState.CANCELED);
+        if (slot.getState() == SlotState.BOOKED) {
+            slot.setState(SlotState.AVAILABLE);
+        }else{
+            int otherRequestInPending = bookingRequestRepository.countBySlotIdAndStatusAndIdNot(slot.getId(), BookingSlotState.PENDING, bookingRequestId);
+            if(otherRequestInPending == 0){
+                slot.setState(SlotState.AVAILABLE);
+            }else{
+                slot.setState(SlotState.PENDING);
+            }
+        }
+        bookingRequest.setCancellationReason(reason);
+        slotRepository.save(slot);
+        bookingRequestRepository.save(bookingRequest);
+        BookingCanceledEvent event = new BookingCanceledEvent(
+                bookingRequest.getId(),
+                bookingRequest.getUserId(),
+                slot.getId(),
+                bookingRequest.getVenueId(),
+                "VENUE",
+                reason
+        );
+        bookingProducer.sendCanceledEvent(event);
         return bookingMapper.toBookingResponse(bookingRequest);
     }
 }

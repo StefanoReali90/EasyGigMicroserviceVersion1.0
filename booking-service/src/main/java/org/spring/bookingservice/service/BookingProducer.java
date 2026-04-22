@@ -1,6 +1,7 @@
 package org.spring.bookingservice.service;
 
 import lombok.RequiredArgsConstructor;
+import org.spring.bookingservice.dto.BookingCanceledEvent;
 import org.spring.bookingservice.dto.BookingExpiredEvent;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,10 @@ public class BookingProducer {
 
     public void sendStrikeEvent(BookingExpiredEvent event) {
         kafkaTemplate.send(TOPIC, event);
+    }
+
+    public void sendCanceledEvent(BookingCanceledEvent event) {
+        kafkaTemplate.send("booking-canceled-topic", event);
     }
 
 }
