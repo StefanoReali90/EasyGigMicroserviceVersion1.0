@@ -9,7 +9,7 @@ public record SlotResponseDTO(
         Long id,
         LocalDateTime start,
         LocalDateTime end,
-        SlotState status,
+        SlotState state,
         Long venueId
 ) {
 }
