@@ -40,9 +40,19 @@ public class VenueController {
         VenueResponse response = venueService.getVenueById(venueId);
         return ResponseEntity.ok(response);
     }
-    @GetMapping(path = "/", produces = "application/json")
-    public ResponseEntity<List<VenueResponse>> getAllVenues() {
-        List<VenueResponse> response = venueService.getAllVenue();
+    @GetMapping(produces = "application/json")
+    public ResponseEntity<List<VenueResponse>> getVenues(@RequestParam(required = false) String city) {
+
+        List<VenueResponse> response;
+
+        if (city != null && !city.isBlank()) {
+
+            response = venueService.searchVenuesByCity(city);
+        } else {
+            
+            response = venueService.getAllVenue();
+        }
+
         return ResponseEntity.ok(response);
     }
 }

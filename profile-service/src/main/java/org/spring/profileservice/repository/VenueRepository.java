@@ -8,4 +8,6 @@ import java.util.List;
 @Repository
 public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findByDirectorId(Long directorId);
+    List<Venue> findByAddressCityNameIgnoreCase(String cityName);
+
 }

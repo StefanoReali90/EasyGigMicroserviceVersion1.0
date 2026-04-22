@@ -2,9 +2,10 @@ package org.spring.profileservice.service;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.spring.profileservice.dto.*;
+import org.spring.profileservice.dto.PhotoRequest;
+import org.spring.profileservice.dto.VenueRequest;
+import org.spring.profileservice.dto.VenueResponse;
 import org.spring.profileservice.entity.*;
-import org.spring.profileservice.exception.BandNonTrovataException;
 import org.spring.profileservice.exception.CityNotFoundException;
 import org.spring.profileservice.exception.DirectorNotFoundException;
 import org.spring.profileservice.exception.VenueNotFoundException;
@@ -110,5 +111,18 @@ public class VenueService {
         }
     }
 
+    public List<VenueResponse> searchVenuesByCity(String city) {
+        List<Venue> venues = venueRepository.findByAddressCityNameIgnoreCase(city);
+        if (venues.isEmpty()) {
+            throw new CityNotFoundException("Nessuna location trovata per la città: " + city);
+        }
+        List<VenueResponse> responses = new ArrayList<>();
+        for (Venue venue : venues) {
+            responses.add(venueMapper.toResponse(venue));
+
+        }
+        return responses;
+
+    }
 }
 
