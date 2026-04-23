@@ -42,8 +42,8 @@ public class BandController {
     }
 
     @GetMapping(path = "/{id}/members", produces = "application/json")
-    public ResponseEntity<List<BandMemberResponse>> getBandMembers(@PathVariable Long id) {
-        List<BandMemberResponse> response = bandService.getBandMembers(id);
+    public ResponseEntity<List<MemberSummaryResponse>> getBandMembers(@PathVariable Long id) {
+        List<MemberSummaryResponse> response = bandService.getBandMembers(id);
         return ResponseEntity.ok(response);
     }
 
@@ -57,6 +57,16 @@ public class BandController {
     public ResponseEntity<Void> deleteBandMember(@PathVariable Long bandId, @PathVariable Long memberId, @PathVariable Long userId) {
         bandService.removeBandMember(bandId, memberId,userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<BandSearchResponse>> searchBands(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String genre
+    ) {
+        List<BandSearchResponse> response = bandService.searchBands(name, city, genre);
+        return ResponseEntity.ok(response);
     }
 
 

@@ -8,4 +8,7 @@ import java.util.List;
 @Repository
 public interface BandRepository extends JpaRepository<Band, Long> {
     List<Band> findByNameContainingIgnoreCase(String name);
+    List<Band> findByCityNameIgnoreCase(String cityName);
+    List<Band> findByGenresNameIgnoreCase(String genresName);
+    List<Band> findByGenresNameIgnoreCaseOrderByReputationDesc(String genresName);
 }

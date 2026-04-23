@@ -12,7 +12,6 @@ import org.spring.profileservice.repository.UserRepository;
 import org.spring.profileservice.utility.PhotoTool;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.spring.profileservice.exception.AccessDeniedException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -124,31 +123,24 @@ public class BandService {
     /**
      * Consente di ricercare una band con l'id di uno dei membri
      */
-    public List<BandMemberResponse> getBandMembers(Long id) {
+    public List<MemberSummaryResponse> getBandMembers(Long id) {
         Band band = bandRepository.findById(id)
                 .orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
 
-        List<Long> memberIds = band.getMembers().stream()
-                .map(User::getId)
-                .toList();
-
-        return bandMapper.mapMemberIdsToResponses(memberIds);
+        return bandMapper.mapMembersToResponses(band.getMembers());
     }
 
     /**
      * Consente di ricercare una band per id
      */
-    public BandMemberResponse getBandMemberSummary(Long bandId, Long memberId) {
+    public MemberSummaryResponse getBandMemberSummary(Long bandId, Long memberId) {
         Band band = bandRepository.findById(bandId).orElseThrow(() -> new BandNonTrovataException("Band non trovata"));
-        if (!band.getMembers().contains(memberId)) {
-            throw new MembroNonTrovatoException("Membro non trovato nella band");
-        }
-        List<BandMemberResponse> members = bandMapper.mapMemberIdsToResponses(List.of(memberId));
-        if (members.isEmpty()) {
-            throw new MembroNonTrovatoException("Membro non trovato");
-        }
-        return members.get(0);
+        User member = band.getMembers().stream()
+                .filter(m -> m.getId().equals(memberId))
+                .findFirst()
+                .orElseThrow(() -> new MembroNonTrovatoException("Membro non trovato nella band"));
 
+        return new MemberSummaryResponse(member.getId(), member.getFirstName(), member.getLastName(), member.getRole().toString());
     }
     /**
      * Consente aggiungere un membro alla band
@@ -189,8 +181,23 @@ public class BandService {
         if (!band.getMembers().contains(user)) {
             throw new AccessDeniedException("Accesso non autorizzato: non sei un membro di questa band");
         }
-        // Se arriviamo qui, l'utente è validato
+
     }
 
+    public List<BandSearchResponse> searchBands(String name, String cityName, String genreName) {
+        List<Band> bands;
+        if (name != null && !name.isBlank()) {
+            bands = bandRepository.findByNameContainingIgnoreCase(name);
+        } else if (cityName != null && !cityName.isBlank()) {
+            bands = bandRepository.findByCityNameIgnoreCase(cityName);
+        } else if (genreName != null && !genreName.isBlank()) {
+            bands = bandRepository.findByGenresNameIgnoreCase(genreName);
+        } else {
+            bands = bandRepository.findAll();
+        }
+        return bands.stream()
+                .map(bandMapper::toSearchResponse)
+                .toList();
+    }
 
     }
