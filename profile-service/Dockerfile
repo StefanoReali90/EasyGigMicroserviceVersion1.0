@@ -9,6 +9,7 @@ COPY notification-service/pom.xml notification-service/
 RUN mvn dependency:go-offline -B
 COPY profile-service/src profile-service/src
 RUN mvn package -DskipTests -pl profile-service -am
+
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=build /app/profile-service/target/*.jar app.jar

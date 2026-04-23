@@ -21,6 +21,11 @@ public class GlobalExceptionHandler {
             InvalidTokenException.class,
             NotBlankException.class,
             MembroNonTrovatoException.class,
+            DirectorNotFoundException.class,
+            OrganizationNotFoundException.class,
+            VenueNotFoundException.class,
+            UnauthorizedException.class,
+            AccessDeniedException.class,
             Exception.class
     })
     public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex) {
@@ -35,6 +40,11 @@ public class GlobalExceptionHandler {
             case InvalidTokenException e -> HttpStatus.UNAUTHORIZED;
             case NotBlankException e -> HttpStatus.BAD_REQUEST;
             case MembroNonTrovatoException e -> HttpStatus.BAD_REQUEST;
+            case DirectorNotFoundException e -> HttpStatus.NOT_FOUND;
+            case OrganizationNotFoundException e -> HttpStatus.NOT_FOUND;
+            case VenueNotFoundException e -> HttpStatus.NOT_FOUND;
+            case UnauthorizedException e -> HttpStatus.UNAUTHORIZED;
+            case AccessDeniedException e -> HttpStatus.FORBIDDEN;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
 
