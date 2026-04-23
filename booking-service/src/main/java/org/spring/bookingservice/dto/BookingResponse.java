@@ -1,6 +1,7 @@
 package org.spring.bookingservice.dto;
 
 import org.spring.bookingservice.utility.BookingSlotState;
+import org.spring.bookingservice.utility.RequesterType;
 
 import java.time.LocalDateTime;
 
@@ -13,6 +14,6 @@ public record BookingResponse(
         LocalDateTime createdAt,
         String groupId,
         Long bandId,
-        org.spring.bookingservice.utility.RequesterType requesterType
+        RequesterType requesterType
 ) {
 }
