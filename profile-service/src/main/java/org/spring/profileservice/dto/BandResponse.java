@@ -9,7 +9,7 @@ public record BandResponse(
         boolean negotiable,
         String bandType,
         String cityName,
-        String linkStreaming,
+        List<TrackResponse> tracks,
         List<Long> memberIds,
         List<String> genreNames
 ) {

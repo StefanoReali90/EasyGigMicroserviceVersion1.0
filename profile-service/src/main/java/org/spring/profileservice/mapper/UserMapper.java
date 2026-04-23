@@ -6,7 +6,7 @@ import org.spring.profileservice.dto.UserResponse;
 import org.spring.profileservice.dto.UserUpdateRequest;
 import org.spring.profileservice.entity.User;
 
-@Mapper
+@Mapper(componentModel = "spring", uses = {TrackMapper.class})
 public interface UserMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -16,8 +16,10 @@ public interface UserMapper {
     @Mapping(target = "venues", ignore = true)
     @Mapping(target = "stateAccount", ignore = true)
     @Mapping(target = "organizations", ignore = true)
+    @Mapping(target = "tracks", ignore = true)
     User toEntity(UserRegistrationRequest request);
 
+    @Mapping(target = "tracks", source = "tracks")
     UserResponse toResponse(User user);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

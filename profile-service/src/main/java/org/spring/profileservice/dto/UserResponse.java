@@ -9,6 +9,7 @@ public record UserResponse(
         String lastName,
         UserType role,
         Double reputation,
-        Integer reviewCount
+        Integer reviewCount,
+        java.util.List<TrackResponse> tracks
 ) {
 }

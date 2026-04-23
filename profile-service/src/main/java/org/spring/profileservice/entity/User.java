@@ -88,4 +88,11 @@ public class User {
 
 
 
+    @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MusicTrack> tracks = new ArrayList<>();
+
+    public void addTrack(MusicTrack track) {
+        this.tracks.add(track);
+        track.setArtist(this);
+    }
 }

@@ -32,9 +32,8 @@ public class Band implements InvitingGroup {
     @JoinColumn(name = "city_id", nullable = false)
     private City city;
 
-    private String linkStreaming;//link ai brani della band opzionali
-
-    private String filePath; //link alla source per il caricamento di almeno un brano.
+    @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MusicTrack> tracks = new ArrayList<>();
 
     @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true) //relazione uno a molti con le foto
     private List<Photo> photos = new ArrayList<>();
@@ -102,5 +101,10 @@ public class Band implements InvitingGroup {
     public void removeUser(User user) { //metodo helper per rimuovere un utente
         this.members.remove(user);
         user.getBands().remove(this);
+    }
+
+    public void addTrack(MusicTrack track) {
+        this.tracks.add(track);
+        track.setBand(this);
     }
 }
