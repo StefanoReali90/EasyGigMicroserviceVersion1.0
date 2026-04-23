@@ -8,7 +8,7 @@ COPY booking-service/pom.xml booking-service/
 COPY notification-service/pom.xml notification-service/
 RUN mvn dependency:go-offline -B
 COPY profile-service/src profile-service/src
-RUN mvn package -DskipTests -pl profile-service -am
+RUN mvn package -Dmaven.test.skip=true -pl profile-service -am
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
