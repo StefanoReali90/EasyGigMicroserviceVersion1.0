@@ -12,7 +12,7 @@ import org.spring.profileservice.entity.Venue;
 @Mapper(componentModel = "spring")
 public interface VenueMapper {
 
-    @Mapping(target = "directorId", source = "director.id")
+    @Mapping(target = "directorName", expression = "java(venue.getDirector() != null ? venue.getDirector().getFirstName() + \" \" + venue.getDirector().getLastName() : null)")
     @Mapping(target = "fullAddress", expression = "java(formatFullAddress(venue.getAddress()))")
     VenueResponse toResponse(Venue venue);
 

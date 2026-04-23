@@ -81,8 +81,7 @@ public class UserService {
 
     public AccountStatusResponse getUserStatus(Long id){
         User user = userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("User non trovato"));
-        StateAccount stateAccount = user.getStateAccount();
-        return accountStatusMapper.toResponse(stateAccount);
+        return accountStatusMapper.toResponse(user);
     }
     @Transactional
     public void addStrikes(Long id) {

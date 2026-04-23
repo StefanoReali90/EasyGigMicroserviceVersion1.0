@@ -28,6 +28,12 @@ public class Band implements InvitingGroup {
     @Enumerated //tipologia band
     private BandType bandType;
 
+    @Column(nullable = false)
+    private Double reputation = 0.0;
+
+    @Column(nullable = false)
+    private Integer reviewCount = 0;
+
     @ManyToOne//relazione molti a uno con la citta
     @JoinColumn(name = "city_id", nullable = false)
     private City city;

@@ -21,7 +21,7 @@ services:
     networks:
       - easygig-network
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.4.0
     depends_on:
       - zookeeper
     ports:
@@ -114,8 +114,14 @@ services:
       - discovery-server
       - kafka
     environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/easygig-notifications
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      APPLICATION_FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
+      MAIL_USERNAME: ${MAIL_USERNAME:-dummy_user}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-dummy_pass}
     networks:
       - easygig-network
 networks:
