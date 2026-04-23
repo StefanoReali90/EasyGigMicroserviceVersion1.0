@@ -20,7 +20,7 @@ public class BookingRequest {
     private Slot slot;
 
     @Column(nullable = false)
-    private Long UserId;
+    private Long userId;
 
     @Column(nullable = false)
     private Long venueId;

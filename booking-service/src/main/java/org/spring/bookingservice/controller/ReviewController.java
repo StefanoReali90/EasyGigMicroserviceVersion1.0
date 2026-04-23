@@ -25,8 +25,21 @@ public class ReviewController {
      * - Il voto deve essere compreso tra 1 e 5
      */
     @PostMapping
-    public ResponseEntity<ReviewResponseDTO> createReview(@RequestBody CreateReviewDTO createReviewDTO) {
-        ReviewResponseDTO response = reviewService.createReview(createReviewDTO);
+    public ResponseEntity<ReviewResponseDTO> createReview(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody CreateReviewDTO createReviewDTO) {
+        
+        // Usiamo il userId dal token come reviewerId
+        CreateReviewDTO updatedDTO = new CreateReviewDTO(
+                userId, 
+                createReviewDTO.reviewedId(), 
+                createReviewDTO.bookingRequestId(), 
+                createReviewDTO.rate(), 
+                createReviewDTO.comment(), 
+                createReviewDTO.role()
+        );
+        
+        ReviewResponseDTO response = reviewService.createReview(updatedDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

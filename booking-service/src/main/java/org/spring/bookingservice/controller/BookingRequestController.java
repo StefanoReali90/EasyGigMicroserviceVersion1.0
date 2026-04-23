@@ -24,8 +24,11 @@ public class BookingRequestController {
      * Crea una nuova prenotazione. Restituisce 201 Created.
      */
     @PostMapping
-    public ResponseEntity<BookingResponse> createBookingRequest(@RequestBody BookingRequestDTO requestDTO) {
-        BookingResponse response = bookingRequestService.createRequest(requestDTO);
+    public ResponseEntity<BookingResponse> createBookingRequest(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody BookingRequestDTO requestDTO) {
+        // Ignoriamo l'eventuale userId nel body per sicurezza e usiamo quello del token
+        BookingResponse response = bookingRequestService.createRequest(new BookingRequestDTO(userId, requestDTO.slotId()));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -43,9 +46,9 @@ public class BookingRequestController {
      */
     @PatchMapping("/{bookingRequestId}/accept")
     public ResponseEntity<BookingResponse> acceptRequest(
-            @PathVariable Long bookingRequestId,
-            @RequestBody CancelBookingRequestDTO acceptDTO) {
-        BookingResponse response = bookingRequestService.acceptRequest(acceptDTO.userId(), bookingRequestId);
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long bookingRequestId) {
+        BookingResponse response = bookingRequestService.acceptRequest(userId, bookingRequestId);
         return ResponseEntity.ok(response);
     }
 
@@ -56,9 +59,9 @@ public class BookingRequestController {
      */
     @PatchMapping("/{bookingRequestId}/reject")
     public ResponseEntity<BookingResponse> rejectRequest(
-            @PathVariable Long bookingRequestId,
-            @RequestBody CancelBookingRequestDTO rejectDTO) {
-        BookingResponse response = bookingRequestService.rejectRequest(rejectDTO.userId(), bookingRequestId);
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long bookingRequestId) {
+        BookingResponse response = bookingRequestService.rejectRequest(userId, bookingRequestId);
         return ResponseEntity.ok(response);
     }
 
@@ -68,9 +71,10 @@ public class BookingRequestController {
      */
     @PatchMapping("/{bookingRequestId}/cancel-user")
     public ResponseEntity<BookingResponse> cancelRequestByUser(
+            @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long bookingRequestId,
             @RequestBody CancelBookingRequestDTO cancelDTO) {
-        BookingResponse response = bookingRequestService.cancelRequestByUser(cancelDTO.userId(), bookingRequestId, cancelDTO.reason());
+        BookingResponse response = bookingRequestService.cancelRequestByUser(userId, bookingRequestId, cancelDTO.reason());
         return ResponseEntity.ok(response);
     }
 
@@ -80,9 +84,10 @@ public class BookingRequestController {
      */
     @PatchMapping("/{bookingRequestId}/cancel-venue")
     public ResponseEntity<BookingResponse> cancelRequestByVenue(
+            @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long bookingRequestId,
             @RequestBody CancelBookingRequestDTO cancelDTO) {
-        BookingResponse response = bookingRequestService.cancelRequestByVenue(cancelDTO.userId(), bookingRequestId, cancelDTO.reason());
+        BookingResponse response = bookingRequestService.cancelRequestByVenue(userId, bookingRequestId, cancelDTO.reason());
         return ResponseEntity.ok(response);
     }
 

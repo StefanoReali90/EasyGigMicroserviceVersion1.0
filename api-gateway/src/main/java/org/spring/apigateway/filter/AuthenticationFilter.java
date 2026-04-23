@@ -50,12 +50,15 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                         .getPayload();
                 // 4. Estrai i dati dell'utente dal token
                 String userEmail = claims.getSubject();
-                // 5. AGGIUNGI L'INTESTAZIONE SEGRETA: 
-                // Il Gateway aggiunge l'email dell'utente a un header finto chiamato "X-Auth-User"
+                Long userId = claims.get("userId", Long.class);
+
+                // 5. AGGIUNGI LE INTESTAZIONI: 
+                // Il Gateway aggiunge l'email e l'ID dell'utente a degli header
                 //
                 ServerWebExchange modifiedExchange = exchange.mutate()
                         .request(exchange.getRequest().mutate()
                                 .header("X-Auth-User", userEmail)
+                                .header("X-User-Id", String.valueOf(userId))
                                 .build())
                         .build();
                 // 6. Fai passare la richiesta modificata ai microservizi!
