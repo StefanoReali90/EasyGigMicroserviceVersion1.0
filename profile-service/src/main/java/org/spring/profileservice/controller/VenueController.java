@@ -17,13 +17,13 @@ public class VenueController {
     @Autowired
     private VenueService venueService;
 
-    @PostMapping(path="/", consumes = "application/json", produces = "application/json")
+    @PostMapping(path = "/", consumes = "application/json", produces = "application/json")
     public ResponseEntity<VenueResponse> createVenue(@RequestBody VenueRequest venueRequest) {
         VenueResponse response = venueService.createVenue(venueRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping(path="/{venueId}", consumes = "application/json", produces = "application/json")
+    @PutMapping(path = "/{venueId}", consumes = "application/json", produces = "application/json")
     public ResponseEntity<VenueResponse> updateVenue(@RequestBody VenueRequest venueRequest, @PathVariable("venueId") Long venueId) {
         VenueResponse response = venueService.updateVenue(venueRequest, venueId);
         return ResponseEntity.ok(response);
@@ -40,11 +40,14 @@ public class VenueController {
         VenueResponse response = venueService.getVenueById(venueId);
         return ResponseEntity.ok(response);
     }
+
     @GetMapping(produces = "application/json")
     public ResponseEntity<List<VenueResponse>> getVenues(
             @RequestParam(required = false) String city,
+            @RequestParam(required = false) String name,
             @RequestParam(required = false, defaultValue = "false") boolean sortByReputation) {
-        List<VenueResponse> response = venueService.searchVenues(city, sortByReputation);
+
+        List<VenueResponse> response = venueService.searchVenues(city, sortByReputation, name);
         return ResponseEntity.ok(response);
     }
 }

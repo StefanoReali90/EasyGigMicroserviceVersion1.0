@@ -11,5 +11,10 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findByAddressCityNameIgnoreCase(String cityName);
     List<Venue> findByAddressCityNameIgnoreCaseOrderByDirectorReputationDesc(String cityName);
     List<Venue> findAllByOrderByDirectorReputationDesc();
+    List<Venue> findByNameContainingIgnoreCaseOrderByDirectorReputationDesc(String name);
+    List<Venue> findByNameContainingIgnoreCase(String name);
+    List<Venue> findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCase(String name, String cityName);
+    List<Venue> findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCaseOrderByDirectorReputationDesc(String name, String cityName);
+
 
 }

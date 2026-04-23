@@ -111,13 +111,28 @@ public class VenueService {
         }
     }
 
-    public List<VenueResponse> searchVenues(String city, boolean sortByReputation) {
+    public List<VenueResponse> searchVenues(String city, boolean sortByReputation, String name) {
         List<Venue> venues;
-        if (city != null && !city.isBlank()) {
+        boolean hasCity = city != null && !city.isBlank();
+        boolean hasName = name != null && !name.isBlank();
+
+        if (hasCity && hasName) {
+            if (sortByReputation) {
+                venues = venueRepository.findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCaseOrderByDirectorReputationDesc(name, city);
+            } else {
+                venues = venueRepository.findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCase(name, city);
+            }
+        } else if (hasCity) {
             if (sortByReputation) {
                 venues = venueRepository.findByAddressCityNameIgnoreCaseOrderByDirectorReputationDesc(city);
             } else {
                 venues = venueRepository.findByAddressCityNameIgnoreCase(city);
+            }
+        } else if (hasName) {
+            if (sortByReputation) {
+                venues = venueRepository.findByNameContainingIgnoreCaseOrderByDirectorReputationDesc(name);
+            } else {
+                venues = venueRepository.findByNameContainingIgnoreCase(name);
             }
         } else {
             if (sortByReputation) {

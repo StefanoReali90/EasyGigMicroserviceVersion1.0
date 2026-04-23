@@ -37,6 +37,9 @@ public class ReviewService {
         Event event = bookingRequest.getEvents().stream()
                 .findFirst()
                 .orElseThrow(() -> new ReviewNotAllowedException("Nessun evento trovato per questa prenotazione"));
+        if (LocalDateTime.now().isBefore(event.getEndTime())) {
+            throw new ReviewNotAllowedException("Non puoi recensire un evento che non è ancora terminato");
+        }
 
         if (LocalDateTime.now().isAfter(event.getEndTime().plusDays(7))) {
             throw new ReviewNotAllowedException("Il periodo di recensione di 7 giorni è scaduto");
