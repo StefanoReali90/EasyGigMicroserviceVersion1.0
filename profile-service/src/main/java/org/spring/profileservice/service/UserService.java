@@ -2,15 +2,10 @@ package org.spring.profileservice.service;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.spring.profileservice.dto.AccountStatusResponse;
-import org.spring.profileservice.dto.UserRegistrationRequest;
-import org.spring.profileservice.dto.UserResponse;
-import org.spring.profileservice.dto.UserUpdateRequest;
+import org.spring.profileservice.dto.*;
 import org.spring.profileservice.entity.StateAccount;
 import org.spring.profileservice.entity.User;
-import org.spring.profileservice.exception.EmailGiaEsistenteException;
-import org.spring.profileservice.exception.InvalidTokenException;
-import org.spring.profileservice.exception.UserNotFoundException;
+import org.spring.profileservice.exception.*;
 import org.spring.profileservice.mapper.AccountStatusMapper;
 import org.spring.profileservice.mapper.UserMapper;
 import org.spring.profileservice.repository.StateAccountRepository;
@@ -20,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +29,19 @@ public class UserService {
     private final AccountStatusMapper accountStatusMapper;
     private final StateAccountRepository stateAccountRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Transactional
+    public AuthResponse authenticate(AuthRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new UserNotFoundException("Utente non trovato"));
+
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            throw new UnauthorizedException("Credenziali non valide");
+        }
+
+        String token = jwtService.generateToken(new HashMap<>(), user.getEmail());
+        return new AuthResponse(token, userMapper.toResponse(user));
+    }
 
     @Transactional
     public UserResponse registerUser(UserRegistrationRequest request, String token) {
@@ -70,6 +79,12 @@ public class UserService {
             throw new UserNotFoundException("Utente non trovato");
         }
         userRepository.deleteById(id);
+    }
+
+    public java.util.List<UserResponse> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(userMapper::toResponse)
+                .toList();
     }
 
     public UserResponse getUser(Long id){

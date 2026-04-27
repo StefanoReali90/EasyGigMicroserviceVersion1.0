@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(path="/users")
+@CrossOrigin(origins = "http://localhost:5173")
 @Tag(name = "User Management", description = "API per la gestione degli utenti e dei loro profili")
 public class UserController {
 
@@ -24,8 +25,8 @@ public class UserController {
 
 
     @PostMapping(value = "/", consumes = "application/json")
-    @Operation(summary = "Registra un nuovo utente", description = "Crea un nuovo profilo utente nel sistema utilizzando un token di invito valido.")
-    public ResponseEntity<UserResponse> registerUser(@RequestBody UserRegistrationRequest request, @RequestParam String token){
+    @Operation(summary = "Registra un nuovo utente", description = "Crea un nuovo profilo utente nel sistema.")
+    public ResponseEntity<UserResponse> registerUser(@RequestBody UserRegistrationRequest request, @RequestParam(required = false) String token){
         UserResponse response = userService.registerUser(request,token);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -57,6 +58,12 @@ public class UserController {
     public ResponseEntity<Void> addStrikes(@PathVariable Long id){
         userService.addStrikes(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping(path = "/", produces = "application/json")
+    @Operation(summary = "Lista utenti", description = "Ritorna una lista di tutti gli utenti registrati.")
+    public ResponseEntity<java.util.List<UserResponse>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @PatchMapping(path=("/{id}/strikes/reset"))

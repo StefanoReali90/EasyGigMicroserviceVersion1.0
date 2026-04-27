@@ -2,6 +2,7 @@ package org.spring.profileservice.controller;
 
 import org.spring.profileservice.dto.*;
 import org.spring.profileservice.service.BandService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.RequestEntity;
@@ -12,6 +13,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/bands")
+@CrossOrigin(origins = "http://localhost:5173")
+@Tag(name = "Band Management", description = "API per la gestione delle band e degli artisti")
 public class BandController {
 
     @Autowired

@@ -16,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping(path= "/slots")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173")
 public class SlotController {
 
     private final SlotService slotService;

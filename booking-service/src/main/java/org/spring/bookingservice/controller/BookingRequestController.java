@@ -17,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/bookings")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173")
 @Tag(name = "Booking Management", description = "API per la gestione delle richieste di prenotazione tra Artisti, Venue e Promoter")
 public class BookingRequestController {
 

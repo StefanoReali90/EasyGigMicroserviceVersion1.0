@@ -3,6 +3,7 @@ package org.spring.profileservice.controller;
 import org.spring.profileservice.dto.VenueRequest;
 import org.spring.profileservice.dto.VenueResponse;
 import org.spring.profileservice.service.VenueService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/venues")
+@CrossOrigin(origins = "http://localhost:5173")
+@Tag(name = "Venue Management", description = "API per la gestione dei locali e delle location")
 public class VenueController {
 
     @Autowired

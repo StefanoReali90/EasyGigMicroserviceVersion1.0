@@ -12,6 +12,7 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/tracks")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class TrackController {
 
