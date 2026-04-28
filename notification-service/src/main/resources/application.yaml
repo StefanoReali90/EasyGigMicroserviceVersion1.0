@@ -8,7 +8,6 @@ application:
 spring:
   application:
     name: notification-service
-
   datasource:
     url: jdbc:postgresql://localhost:5432/easygig-profiles
     username: ${DB_USERNAME:postgres}
@@ -25,7 +24,6 @@ spring:
           starttls:
             enable: true
 
-
   # Configurazione Kafka Consumer
   kafka:
     bootstrap-servers: localhost:9092
@@ -36,6 +34,12 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+
+logging:
+  file:
+    name: logs/notification-service.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 eureka:
   client:

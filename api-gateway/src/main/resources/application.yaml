@@ -12,13 +12,11 @@ spring:
           lower-case-service-id: true
       routes:
         # --- PROFILE SERVICE ---
-        # Rotta pubblica: registrazione utenti (nessun token richiesto)
-        - id: profile-service-users
+        # Rotte pubbliche: login e registrazione (nessun token richiesto)
+        - id: profile-service-public
           uri: lb://profile-service
           predicates:
-            - Path=/users/**
-          filters:
-            - AuthenticationFilter
+            - Path=/auth/**, /users/**
 
         # Rotta protetta: gestione venues
         - id: profile-service-venues
@@ -37,19 +35,11 @@ spring:
             - AuthenticationFilter
 
         # --- BOOKING SERVICE ---
-        # Rotta protetta: prenotazioni (richiede token)
-        - id: booking-service-bookings
+        # Rotte protette: prenotazioni e recensioni
+        - id: booking-service
           uri: lb://booking-service
           predicates:
-            - Path=/bookings/**
-          filters:
-            - AuthenticationFilter
-
-        # Rotta protetta: gestione slot e calendario
-        - id: booking-service-reviews
-          uri: lb://booking-service
-          predicates:
-            - Path=/reviews/**
+            - Path=/bookings/**, /reviews/**
           filters:
             - AuthenticationFilter
 

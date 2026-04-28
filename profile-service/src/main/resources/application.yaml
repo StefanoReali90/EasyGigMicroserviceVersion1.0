@@ -5,13 +5,25 @@ spring:
   application:
     name: profile-service
   datasource:
-      url: jdbc:postgresql://localhost:5432/easygig-profiles
-      username: ${DB_USERNAME:postgres}
-      password: ${DB_PASSWORD}
+    url: jdbc:postgresql://localhost:5432/easygig-profiles
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+logging:
+  file:
+    name: logs/profile-service.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
 eureka:
   client:
     service-url:
@@ -33,11 +45,6 @@ cloudinary:
   api-key: ${CLOUDINARY_API_KEY}
   api-secret: ${CLOUDINARY_API_SECRET}
 
-spring.kafka:
-  bootstrap-servers: localhost:9092
-  producer:
-    key-serializer: org.apache.kafka.common.serialization.StringSerializer
-    value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 springdoc:
   api-docs:
     path: /v3/api-docs

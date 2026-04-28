@@ -11,14 +11,19 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-
   kafka:
     bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+logging:
+  file:
+    name: logs/booking-service.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka
-

@@ -5,6 +5,12 @@ spring:
   application:
     name: chat-service
 
+logging:
+  file:
+    name: logs/chat-service.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
   data:
     mongodb:
       uri: mongodb://mongo:27017/easygig-chat

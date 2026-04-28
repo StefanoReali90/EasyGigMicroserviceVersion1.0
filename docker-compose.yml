@@ -78,6 +78,8 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
     networks:
       - easygig-network
+    volumes:
+      - ./logs/chat-service:/app/logs
 
   profile-service:
     build:
@@ -102,6 +104,9 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     networks:
       - easygig-network
+    volumes:
+      - ./logs/profile-service:/app/logs
+
   booking-service:
     build:
       context: .
@@ -122,6 +127,9 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     networks:
       - easygig-network
+    volumes:
+      - ./logs/booking-service:/app/logs
+
   notification-service:
     build:
       context: .
@@ -143,6 +151,8 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-dummy_pass}
     networks:
       - easygig-network
+    volumes:
+      - ./logs/notification-service:/app/logs
 
   mongo:
     image: mongo:latest

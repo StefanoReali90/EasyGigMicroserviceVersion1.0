@@ -75,4 +75,24 @@ public class NotificationConsumer {
                 " entro 5 giorni. Ti è stato assegnato uno strike.";
         emailService.sendEmail("test@easygig.com", subject, body);
     }
+
+    @KafkaListener(topics = "system-errors", groupId = "notification-group")
+    public void consumeSystemErrors(java.util.Map<String, String> errorDetails) {
+        String subject = "!!! ALERT: Sistema EasyGig - Errore in " + errorDetails.get("service");
+        String body = String.format(
+            "È stato rilevato un errore critico:\n\n" +
+            "Servizio: %s\n" +
+            "Classe: %s\n" +
+            "Metodo: %s\n" +
+            "Errore: %s\n\n" +
+            "Controlla i log per maggiori dettagli.",
+            errorDetails.get("service"),
+            errorDetails.get("class"),
+            errorDetails.get("method"),
+            errorDetails.get("error")
+        );
+        
+        // Invio la mail a te (l'admin del sistema)
+        emailService.sendEmail("easygigapp1.0@gmail.com", subject, body);
+    }
 }
