@@ -6,6 +6,7 @@ COPY discovery-server/pom.xml discovery-server/
 COPY api-gateway/pom.xml api-gateway/
 COPY booking-service/pom.xml booking-service/
 COPY notification-service/pom.xml notification-service/
+COPY chat-service/pom.xml chat-service/
 RUN mvn dependency:go-offline -B
 COPY profile-service/src profile-service/src
 RUN mvn package -Dmaven.test.skip=true -pl profile-service -am

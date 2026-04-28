@@ -27,6 +27,7 @@
     <module>profile-service</module>
     <module>booking-service</module>
     <module>notification-service</module>
+    <module>chat-service</module>
   </modules>
 
   <dependencyManagement>
