@@ -124,8 +124,21 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-dummy_pass}
     networks:
       - easygig-network
+
+  mongodb:
+    image: mongo:latest
+    container_name: easygig-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - easygig-network
+
 networks:
   easygig-network:
     driver: bridge
+
 volumes:
   postgres_data:
+  mongo_data:

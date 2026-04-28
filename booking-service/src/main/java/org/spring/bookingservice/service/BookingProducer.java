@@ -1,6 +1,6 @@
 package org.spring.bookingservice.service;
 
-import lombok.RequiredArgsConstructor;
+import org.spring.bookingservice.dto.BookingAcceptedEvent;
 import org.spring.bookingservice.dto.BookingCanceledEvent;
 import org.spring.bookingservice.dto.BookingExpiredEvent;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -25,6 +25,9 @@ public class BookingProducer {
     }
     public void sendReviewEvent(org.spring.bookingservice.dto.ReviewCreatedEvent event) {
         kafkaTemplate.send("review-created-topic", event);
+    }
+    public void sendAcceptedEvent(BookingAcceptedEvent event){
+        kafkaTemplate.send("booking-accepted", event);
     }
 
 }

@@ -1,10 +1,7 @@
 package org.spring.bookingservice.service;
 
 import lombok.RequiredArgsConstructor;
-import org.spring.bookingservice.dto.BookingCanceledEvent;
-import org.spring.bookingservice.dto.BookingRequestDTO;
-import org.spring.bookingservice.dto.BookingResponse;
-import org.spring.bookingservice.dto.CreatePromoterBookingDTO;
+import org.spring.bookingservice.dto.*;
 import org.spring.bookingservice.entity.BookingRequest;
 import org.spring.bookingservice.entity.Slot;
 import org.spring.bookingservice.exception.*;
@@ -68,6 +65,12 @@ public class BookingRequestService {
         bookingRequestRepository.saveAll(otherRequests);
 
         BookingRequest savedRequest = bookingRequestRepository.save(bookingRequest);
+        BookingAcceptedEvent event = new BookingAcceptedEvent(
+                savedRequest.getId(),
+                savedRequest.getUserId(),
+                slot.getVenueId()
+        );
+        bookingProducer.sendAcceptedEvent(event);
         return bookingMapper.toBookingResponse(savedRequest);
     }
 
