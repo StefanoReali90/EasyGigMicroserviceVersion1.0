@@ -7,7 +7,7 @@ spring:
 
   data:
     mongodb:
-      uri: mongodb://mongodb:27017/easygig-chat
+      uri: mongodb://mongo:27017/easygig-chat
 
   kafka:
     bootstrap-servers: kafka:29092

@@ -60,6 +60,25 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     networks:
       - easygig-network
+
+  chat-service:
+    build:
+      context: .
+      dockerfile: chat-service/Dockerfile
+    container_name: chat-service
+    ports:
+      - "8085:8085"
+    depends_on:
+      - discovery-server
+      - mongo
+      - kafka
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/easygig-chat
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+    networks:
+      - easygig-network
+
   profile-service:
     build:
       context: .
@@ -125,7 +144,7 @@ services:
     networks:
       - easygig-network
 
-  mongodb:
+  mongo:
     image: mongo:latest
     container_name: easygig-mongodb
     ports:
