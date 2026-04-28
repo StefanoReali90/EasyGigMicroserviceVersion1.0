@@ -8,6 +8,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Entità che modella una disponibilità temporale per un evento.
+ * Definisce la finestra temporale e lo stato di occupazione di una Venue.
+ */
 @Entity
 @Data
 public class Slot {
@@ -25,6 +29,9 @@ public class Slot {
     @Enumerated(EnumType.STRING)
     private SlotState state;
 
+    /**
+     * Identificativo della Venue che mette a disposizione lo slot.
+     */
     private Long venueId;
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "slot")
@@ -32,6 +39,4 @@ public class Slot {
 
     @ManyToOne(fetch = FetchType.LAZY)
     private VenueConfiguration venueConfiguration;
-
-
 }

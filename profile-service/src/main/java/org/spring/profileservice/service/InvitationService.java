@@ -23,6 +23,10 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Servizio per la gestione degli inviti ai gruppi (Band o Organizzazioni).
+ * Gestisce la generazione di token di invito e la persistenza dello stato.
+ */
 @Service
 @RequiredArgsConstructor
 public class InvitationService {
@@ -33,12 +37,16 @@ public class InvitationService {
     private final BookingOrganizationRepository bookingOrganizationRepository;
     private final UserRepository userRepository;
 
-    // KafkaTemplate per inviare messaggi al Notification Service
+    // KafkaTemplate per il disaccoppiamento con il Notification Service
     private final KafkaTemplate<String, InvitationEventDTO> kafkaTemplate;
 
     @Value("${application.invitation.expiry-days}")
     private int expiryDays;
 
+    /**
+     * Crea un nuovo invito, genera un token JWT dedicato e notifica il sistema di messaggistica.
+     * Verifica preventivamente l'autorizzazione del mittente all'interno del gruppo.
+     */
     public void createInvitation(String email, Long groupId, Long senderId, GroupType type) {
         InvitingGroup group = findGroupById(groupId, type);
 
@@ -78,8 +86,13 @@ public class InvitationService {
         kafkaTemplate.send("invitation-topic", event);
     }
 
+    /**
+     * Processa l'accettazione di un invito tramite token.
+     * Valida la firma del JWT, verifica lo stato della richiesta e associa l'utente al gruppo target.
+     */
     public void acceptInvitation(String token, Long newUserId) {
         try {
+            // Estrazione claims dal token JWT
             String email = jwtService.getClaim(token, Claims::getSubject);
             Long groupId = jwtService.getClaim(token, claims -> claims.get("groupId", Long.class));
             String typeStr = jwtService.getClaim(token, claims -> claims.get("groupType", String.class));

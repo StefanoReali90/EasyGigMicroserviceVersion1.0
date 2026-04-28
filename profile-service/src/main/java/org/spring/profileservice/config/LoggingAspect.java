@@ -13,6 +13,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Monitoraggio trasversale dei servizi del modulo Profile.
+ * Implementa logica di logging e tracciamento performance tramite AspectJ.
+ */
 @Aspect
 @Component
 @Slf4j
@@ -22,14 +26,15 @@ public class LoggingAspect {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
-     * Definisce dove deve agire l'aspetto.
-     * In questo caso, su tutti i metodi di tutte le classi nel pacchetto service.
+     * Pointcut per intercettare tutti i metodi definiti nel package service.
+     * Garantisce la copertura automatica della business logic senza modifiche al codice sorgente.
      */
     @Pointcut("execution(* org.spring.profileservice.service.*.*(..))")
     public void serviceMethods() {}
 
     /**
-     * Intercetta l'esecuzione del metodo, calcola il tempo e logga inizio/fine/errori.
+     * Intercetta l'esecuzione dei metodi per il calcolo delle metriche di performance 
+     * e la gestione centralizzata delle notifiche di errore verso Kafka.
      */
     @Around("serviceMethods()")
     public Object logExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -42,7 +47,7 @@ public class LoggingAspect {
         long startTime = System.currentTimeMillis();
 
         try {
-            Object result = joinPoint.proceed(); // Esegue il metodo reale
+            Object result = joinPoint.proceed(); // Delegazione dell'esecuzione al metodo originale
             
             long endTime = System.currentTimeMillis();
             log.info("<=== [END] {}.{} | Execution Time: {}ms", className, methodName, (endTime - startTime));
@@ -51,7 +56,7 @@ public class LoggingAspect {
         } catch (Throwable e) {
             log.error("!!! [ERROR] {}.{} | Message: {}", className, methodName, e.getMessage());
             
-            // Invio notifica errore a Kafka
+            // Dispatch dell'errore al sistema di notifiche centralizzato
             Map<String, String> errorDetails = new HashMap<>();
             errorDetails.put("service", "profile-service");
             errorDetails.put("class", className);
@@ -60,7 +65,7 @@ public class LoggingAspect {
             
             kafkaTemplate.send("system-errors", errorDetails);
             
-            throw e;
+            throw e; // Rilancio dell'eccezione per mantenere l'integrità del flusso applicativo
         }
     }
 }

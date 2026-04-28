@@ -13,6 +13,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 
+/**
+ * Consumatore di eventi Kafka per il sistema di notifiche.
+ * Centralizza la logica di invio email a seguito di eventi di sistema (inviti, cancellazioni, errori).
+ */
 @Service
 @RequiredArgsConstructor
 public class NotificationConsumer {
@@ -21,6 +25,10 @@ public class NotificationConsumer {
 
     private final NotificationLogRepository notificationLogRepository;
 
+    /**
+     * Gestisce la ricezione di nuovi inviti e l'invio della relativa mail transazionale.
+     * Registra l'esito dell'operazione nel database per scopi di auditing.
+     */
     @KafkaListener(topics = "invitation-topic", groupId = "notification-group")
     public void consume(InvitationEventDTO event) {
         NotificationLog log = new NotificationLog();
@@ -76,6 +84,11 @@ public class NotificationConsumer {
         emailService.sendEmail("test@easygig.com", subject, body);
     }
 
+    /**
+     * Listener dedicato al monitoraggio degli errori critici del sistema.
+     * Intercetta gli alert inviati dagli Aspect AOP di tutti i microservizi 
+     * e notifica l'amministratore via email in tempo reale.
+     */
     @KafkaListener(topics = "system-errors", groupId = "notification-group")
     public void consumeSystemErrors(java.util.Map<String, String> errorDetails) {
         String subject = "!!! ALERT: Sistema EasyGig - Errore in " + errorDetails.get("service");

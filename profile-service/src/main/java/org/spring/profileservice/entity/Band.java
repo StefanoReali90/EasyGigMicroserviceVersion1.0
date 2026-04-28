@@ -8,24 +8,34 @@ import org.spring.profileservice.utility.BandType;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Rappresentazione di una formazione musicale.
+ * Implementa InvitingGroup per consentire il workflow di inviti via email.
+ */
 @Entity
 @Data
 public class Band implements InvitingGroup {
 
-    @Id // id della band generato automaticamente
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)// nome della band obbligatorio
+    @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)//definizione del cachet obbligatoria
+    /**
+     * Compenso richiesto per l'esibizione (valore intero).
+     */
+    @Column(nullable = false)
     private Integer cachet;
 
-    @Column(nullable = false)// definizione della trattabilità del cachet
+    /**
+     * Flag per indicare se il cachet è aperto a negoziazione.
+     */
+    @Column(nullable = false)
     private boolean negotiable;
 
-    @Enumerated //tipologia band
+    @Enumerated
     private BandType bandType;
 
     @Column(nullable = false)
@@ -34,38 +44,45 @@ public class Band implements InvitingGroup {
     @Column(nullable = false)
     private Integer reviewCount = 0;
 
-    @ManyToOne//relazione molti a uno con la citta
+    /**
+     * Sede principale o città di riferimento del gruppo.
+     */
+    @ManyToOne
     @JoinColumn(name = "city_id", nullable = false)
     private City city;
 
     @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MusicTrack> tracks = new ArrayList<>();
 
-    @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true) //relazione uno a molti con le foto
+    @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Photo> photos = new ArrayList<>();
 
-    @ManyToMany//relazione molti a molti con i membri della band
+    /**
+     * Elenco dei musicisti associati al profilo della band.
+     */
+    @ManyToMany
     @JoinTable(
             name = "band_members",
             joinColumns = @JoinColumn(name = "band_id"),
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
-    private List<User> members= new ArrayList<>();
+    private List<User> members = new ArrayList<>();
 
-
-    @ManyToMany// relazione molti a molti con il genere musicale
+    @ManyToMany
     @JoinTable(name = "band_genres")
-    private List<Genre> genres=new ArrayList<Genre>();
+    private List<Genre> genres = new ArrayList<Genre>();
 
-    @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true)//relazione uno a molti con gli inviti
-    private List<Invitation> invitations=  new ArrayList<>();
+    @OneToMany(mappedBy = "band", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Invitation> invitations = new ArrayList<>();
 
     @Override
     public List<User> getMembers() {
         return members;
-    }//funzione per recuperare la lista dei membri della band
+    }
 
-    @Override //funzione per aggiungere un membro
+    /* Business Logic per la gestione dinamica del gruppo */
+
+    @Override
     public void addMember(User user) {
         if(members == null) {
             members = new ArrayList<>();
@@ -74,37 +91,43 @@ public class Band implements InvitingGroup {
             this.members.add(user);
         }
     }
-    public void addUser(User user) {//metodo helper per aggiungere un utente
+
+    public void addUser(User user) {
         this.members.add(user);
         user.getBands().add(this);
     }
-    public void addPhoto(Photo photo) {//metodo helper per aggiungere un foto
+
+    public void addPhoto(Photo photo) {
         this.photos.add(photo);
-        photo.setBand(this); // aggiorna il lato "Many" della relazione photo
+        photo.setBand(this);
     }
 
-    public void addInvitation(Invitation invitation) { //metodo helper per aggiungere un invito
+    public void addInvitation(Invitation invitation) {
         this.invitations.add(invitation);
-        invitation.setBand(this); // aggiorna il lato "Many" della relazione invitation
+        invitation.setBand(this);
     }
-    public void addGenre(Genre genre) { //metodo helper per aggiungere un genere
-        this.genres.add(genre);
-        genre.getBands().add(this);//aggiorna il lato "Many" del genere
 
+    public void addGenre(Genre genre) {
+        this.genres.add(genre);
+        genre.getBands().add(this);
     }
-    public void removeInvitation(Invitation invitation) {//metodo helper per rimuovere un invito
+
+    public void removeInvitation(Invitation invitation) {
         this.invitations.remove(invitation);
         invitation.setBand(null);
     }
-    public void removeGenre(Genre genre) { //metodo helper per rimuovere un genere
+
+    public void removeGenre(Genre genre) {
         this.genres.remove(genre);
         genre.getBands().remove(this);
     }
-    public void removePhoto(Photo photo) { //metodo helper per rimuovere una foto
+
+    public void removePhoto(Photo photo) {
         this.photos.remove(photo);
         photo.setBand(null);
     }
-    public void removeUser(User user) { //metodo helper per rimuovere un utente
+
+    public void removeUser(User user) {
         this.members.remove(user);
         user.getBands().remove(this);
     }

@@ -18,6 +18,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Servizio core per la gestione del ciclo di vita delle prenotazioni (Booking).
+ * Implementa la logica di business per la creazione, accettazione, rifiuto e cancellazione 
+ * delle richieste, gestendo la consistenza degli stati degli Slot.
+ */
 @Service
 @RequiredArgsConstructor
 public class BookingRequestService {
@@ -25,6 +30,11 @@ public class BookingRequestService {
     private final BookingRequestRepository bookingRequestRepository;
     private final SlotRepository slotRepository;
     private final BookingMapper bookingMapper;
+    
+    /**
+     * Producer Kafka per il disaccoppiamento degli eventi di booking verso 
+     * il sistema di messaggistica (Chat) e notifiche.
+     */
     private final BookingProducer bookingProducer;
 
     public BookingResponse createRequest(BookingRequestDTO bookingRequestDTO) {
@@ -48,16 +58,25 @@ public class BookingRequestService {
         return bookingMapper.toBookingResponse(savedRequest);
     }
 
+    /**
+     * Valida e accetta una richiesta di prenotazione.
+     * Transiziona lo stato dello slot a BOOKED e rigetta automaticamente tutte le altre 
+     * richieste pendenti per lo stesso slot per garantire la consistenza del calendario.
+     */
     public BookingResponse acceptRequest(Long userId, Long bookingRequestId) {
         BookingRequest bookingRequest = bookingRequestRepository.findById(bookingRequestId).orElseThrow(() -> new BookingRequestNotFound("Booking Request non trovato"));
         Slot slot = bookingRequest.getSlot();
+        
+        // Verifica disponibilità dello slot per prevenire double-booking
         if (bookingRequest.getStatus() != BookingSlotState.PENDING && slot.getState() == SlotState.BOOKED) {
             throw new SlotAlredyBookedException("Questo Slot è stato già accettato");
         }
+        
         bookingRequest.setStatus(BookingSlotState.ACCEPTED);
         slot.setState(SlotState.BOOKED);
         slotRepository.save(slot);
 
+        // Chiusura massiva delle altre richieste concorrenti
         List<BookingRequest> otherRequests = bookingRequestRepository.findBySlotIdAndStatusAndIdNot(slot.getId(), BookingSlotState.PENDING, bookingRequestId);
         for (BookingRequest other : otherRequests) {
             other.setStatus(BookingSlotState.REJECTED);
@@ -65,6 +84,8 @@ public class BookingRequestService {
         bookingRequestRepository.saveAll(otherRequests);
 
         BookingRequest savedRequest = bookingRequestRepository.save(bookingRequest);
+        
+        // Propagazione evento tramite Kafka per i servizi a valle (Chat/Notification)
         BookingAcceptedEvent event = new BookingAcceptedEvent(
                 savedRequest.getId(),
                 savedRequest.getUserId(),
