@@ -1,6 +1,10 @@
 server:
   port: 8083
 
+application:
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:4200}
+
 spring:
   application:
     name: notification-service
@@ -10,16 +14,17 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD}
   mail:
-    host: smtp.mailtrap.io
+    host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${GOOGLE_CLIENT_MAIL}
+    password: ${GOOGLE_PASSWORD_MAIL}
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
+
 
   # Configurazione Kafka Consumer
   kafka:

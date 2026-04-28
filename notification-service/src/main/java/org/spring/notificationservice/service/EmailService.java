@@ -21,11 +21,15 @@ public class EmailService {
 
     private final TemplateEngine templateEngine;
 
+    @Value("${spring.mail.username}")
+    private String fromEmail;
+
     @Value("${application.frontend.url}")
     private String frontendUrl;
 
     public void sendEmail(String to, String subject, String body){
         SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
         message.setTo(to);
         message.setSubject(subject);
         message.setText(body);
@@ -50,6 +54,7 @@ public class EmailService {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
 
+            helper.setFrom(fromEmail);
             helper.setText(htmlContent, true);
             helper.setTo(to);
             helper.setSubject("Invito a unirti alla band " + bandName);
