@@ -30,4 +30,11 @@ public class BookingProducer {
         kafkaTemplate.send("booking-accepted", event);
     }
 
+    public void sendRequestCreatedEvent(org.spring.bookingservice.dto.BookingRequestCreatedEvent event) {
+        kafkaTemplate.send("booking-created-topic", event);
+    }
+
+    public void sendRejectedEvent(org.spring.bookingservice.dto.BookingRejectedEvent event) {
+        kafkaTemplate.send("booking-rejected-topic", event);
+    }
 }

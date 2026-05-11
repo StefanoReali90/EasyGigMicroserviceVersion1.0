@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(path="/users")
-@CrossOrigin(origins = "http://localhost:5173")
 @Tag(name = "User Management", description = "API per la gestione degli utenti e dei loro profili")
 public class UserController {
 

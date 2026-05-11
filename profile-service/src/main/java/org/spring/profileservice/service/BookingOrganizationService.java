@@ -33,4 +33,10 @@ public class BookingOrganizationService {
                 .orElseThrow(() -> new RuntimeException("Organizzazione non trovata"));
         return organizationMapper.toResponse(organization);
     }
+
+    public List<OrganizationResponse> getOrganizationsByUser(Long userId) {
+        return organizationRepository.findByPromotersId(userId).stream()
+                .map(organizationMapper::toResponse)
+                .toList();
+    }
 }

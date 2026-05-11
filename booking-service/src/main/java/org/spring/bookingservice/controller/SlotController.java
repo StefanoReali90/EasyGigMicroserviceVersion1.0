@@ -46,4 +46,16 @@ public class SlotController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping(value = "/venue/{venueId}/date/{date}")
+    public ResponseEntity<List<SlotResponseDTO>> getSlotsByVenueAndDate(
+            @PathVariable Long venueId,
+            @PathVariable LocalDate date) {
+        return ResponseEntity.ok(slotService.getSlotsByVenueAndDate(venueId, date));
+    }
+
+    @DeleteMapping("/{slotId}")
+    public ResponseEntity<Void> deleteSlot(@PathVariable Long slotId) {
+        slotService.deleteSlot(slotId);
+        return ResponseEntity.noContent().build();
+    }
 }

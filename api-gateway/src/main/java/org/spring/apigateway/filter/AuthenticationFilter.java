@@ -50,20 +50,24 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                         .getPayload();
                 // 4. Estrai i dati dell'utente dal token
                 String userEmail = claims.getSubject();
-                Long userId = claims.get("userId", Long.class);
+                Object userIdObj = claims.get("userId");
+                String userId = (userIdObj != null) ? String.valueOf(userIdObj) : "null";
+
+                if (userId.equals("null")) {
+                    System.err.println("AVVISO GATEWAY: userId mancante nel token per l'utente " + userEmail);
+                }
 
                 // 5. AGGIUNGI LE INTESTAZIONI: 
-                // Il Gateway aggiunge l'email e l'ID dell'utente a degli header
-                //
                 ServerWebExchange modifiedExchange = exchange.mutate()
                         .request(exchange.getRequest().mutate()
                                 .header("X-Auth-User", userEmail)
-                                .header("X-User-Id", String.valueOf(userId))
+                                .header("X-User-Id", userId)
                                 .build())
                         .build();
                 // 6. Fai passare la richiesta modificata ai microservizi!
                 return chain.filter(modifiedExchange);
             } catch (Exception e) {
+                System.err.println("ERRORE GATEWAY: Validazione token fallita: " + e.getMessage());
                 // Se il token è falso, contraffatto o scaduto, la libreria lancia un'eccezione
                 // e il buttafuori blocca la porta.
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);

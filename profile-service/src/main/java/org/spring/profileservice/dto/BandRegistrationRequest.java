@@ -6,6 +6,7 @@ import java.util.List;
 
 public record BandRegistrationRequest(
         String name,
+        String description,
         Integer cachet,
         boolean negotiable,
         BandType bandType,

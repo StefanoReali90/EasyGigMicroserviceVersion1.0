@@ -4,29 +4,39 @@ server:
 spring:
   application:
     name: api-gateway
+  codec:
+    max-in-memory-size: 10MB
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 60s
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: 
+              - "http://localhost:4200"
+              - "http://localhost:5173"
+              - "http://127.0.0.1:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
       discovery:
         locator:
           enabled: true
           lower-case-service-id: true
       routes:
         # --- PROFILE SERVICE ---
-        # Rotte pubbliche: login e registrazione (nessun token richiesto)
         - id: profile-service-public
           uri: lb://profile-service
           predicates:
-            - Path=/auth/**, /users/**
+            - Path=/auth/**,/users/**,/cities/**,/genres/**,/bands/search,/venues/search
 
-        # Rotta protetta: gestione venues
-        - id: profile-service-venues
-          uri: lb://profile-service
-          predicates:
-            - Path=/venues/**
-          filters:
-            - AuthenticationFilter
-
-        # Rotta protetta: gestione bands
         - id: profile-service-bands
           uri: lb://profile-service
           predicates:
@@ -34,12 +44,51 @@ spring:
           filters:
             - AuthenticationFilter
 
+        - id: profile-service-venues
+          uri: lb://profile-service
+          predicates:
+            - Path=/venues/**
+
+        - id: profile-service-photos
+          uri: lb://profile-service
+          predicates:
+            - Path=/photos/**
+          filters:
+            - AuthenticationFilter
+
+        - id: profile-service-tracks
+          uri: lb://profile-service
+          predicates:
+            - Path=/tracks/**
+          filters:
+            - AuthenticationFilter
+
         # --- BOOKING SERVICE ---
-        # Rotte protette: prenotazioni e recensioni
         - id: booking-service
           uri: lb://booking-service
           predicates:
-            - Path=/bookings/**, /reviews/**
+            - Path=/bookings/**,/reviews/**,/slots/**
+          filters:
+            - AuthenticationFilter
+
+        # --- CHAT SERVICE ---
+        - id: chat-service
+          uri: lb://chat-service
+          predicates:
+            - Path=/chat/**,/api/v1/chat/**
+          filters:
+            - AuthenticationFilter
+
+        - id: chat-service-ws
+          uri: lb://chat-service
+          predicates:
+            - Path=/ws/**
+
+        # --- NOTIFICATION SERVICE ---
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
           filters:
             - AuthenticationFilter
 
@@ -47,12 +96,15 @@ eureka:
   instance:
     lease-renewal-interval-in-seconds: 5
     lease-expiration-duration-in-seconds: 10
+    prefer-ip-address: true
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka
+    registry-fetch-interval-seconds: 5
+    initial-instance-info-replication-interval-seconds: 5
 
-# Chiave segreta JWT: DEVE essere identica a quella del profile-service!
+
 application:
   security:
     jwt:
-      secret-key: ${JWT_SECRET_KEY}
+      secret-key: ${JWT_SECRET_KEY:4AwcRJEcJ4pU9iPtoQ7mUDRB+Suf0vNYP0h6uXX4ejo=}

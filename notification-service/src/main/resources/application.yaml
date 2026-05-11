@@ -9,9 +9,13 @@ spring:
   application:
     name: notification-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/easygig-profiles
+    url: jdbc:postgresql://localhost:5432/easygig-notifications
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
   mail:
     host: smtp.gmail.com
     port: 587

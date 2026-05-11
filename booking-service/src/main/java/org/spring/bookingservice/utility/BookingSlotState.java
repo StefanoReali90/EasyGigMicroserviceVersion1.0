@@ -6,5 +6,6 @@ public enum BookingSlotState {
     PENDING,
     EXPIRED,
     CANCELED,
-    STRIKED
+    STRIKED,
+    INVITED
 }

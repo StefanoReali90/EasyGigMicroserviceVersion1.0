@@ -39,8 +39,8 @@ public class BandService {
             band.setCity(city); // se passa i controlli salvo la citta
         }
         // Gestione dei generi: sincronizzazione della relazione Many-to-Many
-        if (dto.genreIds() != null && !dto.genreIds().isEmpty()) {
-            List<Genre> newGenres = genreRepository.findAllByIdIn(dto.genreIds());
+        if (dto.genreIds() != null) {
+            List<Genre> newGenres = dto.genreIds().isEmpty() ? new ArrayList<>() : genreRepository.findAllByIdIn(dto.genreIds());
             // Pulizia sicura: scolleghiamo i vecchi generi aggiornando entrambi i lati della relazione
             new ArrayList<>(band.getGenres()).forEach(band::removeGenre);
             //// Associazione dei nuovi generi tramite il metodo helper
@@ -50,6 +50,17 @@ public class BandService {
         }
 
 
+    }
+    
+    private void populateMembers(Band band, BandRegistrationRequest dto) {
+        if (dto.memberIds() != null && !dto.memberIds().isEmpty()) {
+            List<User> members = userRepository.findAllById(dto.memberIds());
+            // Pulizia membri attuali (opzionale per update, necessario per coerenza)
+            new ArrayList<>(band.getMembers()).forEach(band::removeUser);
+            for (User member : members) {
+                band.addUser(member);
+            }
+        }
     }
 
 
@@ -64,8 +75,15 @@ public class BandService {
         if (dto.name() == null || dto.name().isBlank()) {
             throw new NotBlankException("Il nome della band non può essere vuoto");
         }
+
+        // Check for uniqueness: Name + City
+        if (bandRepository.existsByNameIgnoreCaseAndCityId(dto.name(), dto.cityId())) {
+            throw new NotBlankException("Una band con il nome '" + dto.name() + "' esiste già in questa città.");
+        }
+
         Band band = bandMapper.toEntity(dto);
         populateCityAndGenres(band, dto);
+        populateMembers(band, dto);
         bandRepository.save(band);
         return bandMapper.toFullResponse(band);
     }
@@ -94,6 +112,7 @@ public class BandService {
         }
 
         populateCityAndGenres(band, dto);
+        populateMembers(band, dto);
 
         bandRepository.save(band);
         return bandMapper.toFullResponse(band);
@@ -184,20 +203,39 @@ public class BandService {
 
     }
 
-    public List<BandSearchResponse> searchBands(String name, String cityName, String genreName) {
+    public List<BandSearchResponse> searchBands(String name, String cityName, String genreName, Double minReputation, Integer maxCachet) {
         List<Band> bands;
-        if (name != null && !name.isBlank()) {
-            bands = bandRepository.findByNameContainingIgnoreCase(name);
-        } else if (cityName != null && !cityName.isBlank()) {
-            bands = bandRepository.findByCityNameIgnoreCase(cityName);
-        } else if (genreName != null && !genreName.isBlank()) {
-            bands = bandRepository.findByGenresNameIgnoreCase(genreName);
+        double minRep = minReputation != null ? minReputation : 0.0;
+        int maxCash = maxCachet != null ? maxCachet : Integer.MAX_VALUE;
+
+        boolean hasName = name != null && !name.isBlank();
+        boolean hasCity = cityName != null && !cityName.isBlank();
+
+        if (hasName && hasCity) {
+            bands = bandRepository.findByNameContainingIgnoreCaseAndCityNameIgnoreCaseAndCachetLessThanEqualAndReputationGreaterThanEqual(name, cityName, maxCash, minRep);
+        } else if (hasName) {
+            bands = bandRepository.findByNameContainingIgnoreCaseAndCachetLessThanEqualAndReputationGreaterThanEqual(name, maxCash, minRep);
+        } else if (hasCity) {
+            bands = bandRepository.findByCityNameIgnoreCaseAndCachetLessThanEqualAndReputationGreaterThanEqual(cityName, maxCash, minRep);
         } else {
-            bands = bandRepository.findAll();
+            bands = bandRepository.findByCachetLessThanEqualAndReputationGreaterThanEqual(maxCash, minRep);
         }
+
+        // Genre filter (performed in memory for simplicity or via repo if requested)
+        if (genreName != null && !genreName.isBlank()) {
+            bands = bands.stream()
+                    .filter(b -> b.getGenres().stream().anyMatch(g -> g.getName().equalsIgnoreCase(genreName)))
+                    .toList();
+        }
+
         return bands.stream()
                 .map(bandMapper::toSearchResponse)
                 .toList();
     }
 
+    public List<BandSearchResponse> getBandsByUser(Long userId) {
+        return bandRepository.findByMembersId(userId).stream()
+                .map(bandMapper::toSearchResponse)
+                .toList();
     }
+}

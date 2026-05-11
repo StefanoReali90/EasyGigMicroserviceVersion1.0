@@ -55,6 +55,15 @@ public class BookingRequestService {
         slotRepository.save(slot);
 
         BookingRequest savedRequest = bookingRequestRepository.save(bookingRequest);
+        
+        // Notifica al locale dell'arrivo di una nuova richiesta
+        bookingProducer.sendRequestCreatedEvent(new BookingRequestCreatedEvent(
+                savedRequest.getId(),
+                savedRequest.getUserId(),
+                savedRequest.getVenueId(),
+                slot.getStart().toString()
+        ));
+
         return bookingMapper.toBookingResponse(savedRequest);
     }
 
@@ -181,6 +190,14 @@ public class BookingRequestService {
         slot.setState(otherPending == 0 ? SlotState.AVAILABLE : SlotState.PENDING);
         slotRepository.save(slot);
         bookingRequestRepository.save(bookingRequest);
+
+        // Notifica all'artista del rifiuto
+        bookingProducer.sendRejectedEvent(new BookingRejectedEvent(
+                bookingRequest.getId(),
+                bookingRequest.getUserId(),
+                bookingRequest.getVenueId()
+        ));
+
         return bookingMapper.toBookingResponse(bookingRequest);
     }
 
@@ -238,5 +255,42 @@ public class BookingRequestService {
         bookingRequest.setBandId(dto.bandId());
         BookingRequest savedRequest = bookingRequestRepository.save(bookingRequest);
         return bookingMapper.toBookingResponse(savedRequest);
+    }
+
+    public List<BookingResponse> getRequestsByVenue(Long venueId, BookingSlotState status) {
+        return bookingRequestRepository.findByVenueIdAndStatus(venueId, status).stream()
+                .map(bookingMapper::toBookingResponse)
+                .toList();
+    }
+
+    public BookingResponse inviteArtist(Long venueId, Long artistId, Long slotId) {
+        Slot slot = slotRepository.findById(slotId)
+                .orElseThrow(() -> new SlotNotFoundException("Slot non trovato"));
+        
+        if (!slot.getVenueId().equals(venueId)) {
+            throw new BookingNotAllowedException("Non puoi invitare per questo slot");
+        }
+        
+        if (slot.getState() == SlotState.BOOKED) {
+            throw new SlotAlredyBookedException("Slot non disponibile");
+        }
+
+        BookingRequest bookingRequest = new BookingRequest();
+        bookingRequest.setUserId(artistId); // L'invitato
+        bookingRequest.setSlot(slot);
+        bookingRequest.setVenueId(venueId);
+        bookingRequest.setRequesterType(RequesterType.VENUE);
+        bookingRequest.setStatus(BookingSlotState.INVITED);
+        
+        slot.setState(SlotState.PENDING);
+        slotRepository.save(slot);
+        
+        return bookingMapper.toBookingResponse(bookingRequestRepository.save(bookingRequest));
+    }
+
+    public List<BookingResponse> getRequestsByUser(Long userId) {
+        return bookingRequestRepository.findByUserId(userId).stream()
+                .map(bookingMapper::toBookingResponse)
+                .toList();
     }
 }

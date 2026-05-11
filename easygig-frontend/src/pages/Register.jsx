@@ -2,9 +2,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Music, User, Mail, Lock, ShieldCheck, ArrowRight, CheckCircle2 } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
 
 import { useAuthStore } from "../store/authStore";
+import * as authApi from "../api/auth";
 
 // Schema di validazione con Zod (standard professionale)
 const registerSchema = z.object({
@@ -21,8 +23,16 @@ const registerSchema = z.object({
 });
 
 export default function Register() {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
   const navigate = useNavigate();
   const setRegistrationData = useAuthStore((state) => state.setRegistrationData);
+
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('pendingInvitationToken', token);
+    }
+  }, [token]);
   
   const {
     register,
@@ -35,9 +45,36 @@ export default function Register() {
     }
   });
 
+  const login = useAuthStore((state) => state.login);
+  const registrationData = useAuthStore((state) => state.registrationData);
+
   const onSubmit = async (data) => {
-    setRegistrationData(data);
-    navigate("/register-profile");
+    try {
+      // 1. Registrazione Utente Base
+      await authApi.registerUser({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+        privacyAccepted: data.privacyAccepted
+      });
+
+      // 2. Login immediato per ottenere il token
+      const authResponse = await authApi.login({
+        email: data.email,
+        password: data.password
+      });
+
+      // 3. Salva nello store e naviga alla dashboard
+      login(authResponse.user, authResponse.token);
+      
+      const targetDashboard = data.role === "ARTIST" ? "/dashboard/artist" : data.role === "DIRECTOR" ? "/dashboard/director" : "/dashboard/promoter";
+      navigate(targetDashboard);
+    } catch (error) {
+      console.error("Errore registrazione:", error);
+      alert(error.response?.data?.message || "Errore durante la registrazione. Riprova.");
+    }
   };
 
   return (
@@ -81,7 +118,9 @@ export default function Register() {
                     {...register("firstName")}
                     className={`w-full bg-slate-800/50 border ${errors.firstName ? 'border-red-500' : 'border-white/10'} rounded-xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-easygig-accent outline-none transition-all`}
                     placeholder="Mario"
+                    autoComplete="given-name"
                   />
+
                 </div>
                 {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
               </div>
@@ -95,7 +134,9 @@ export default function Register() {
                     {...register("lastName")}
                     className={`w-full bg-slate-800/50 border ${errors.lastName ? 'border-red-500' : 'border-white/10'} rounded-xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-easygig-accent outline-none transition-all`}
                     placeholder="Rossi"
+                    autoComplete="family-name"
                   />
+
                 </div>
                 {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
               </div>
@@ -111,7 +152,9 @@ export default function Register() {
                   type="email"
                   className={`w-full bg-slate-800/50 border ${errors.email ? 'border-red-500' : 'border-white/10'} rounded-xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-easygig-accent outline-none transition-all`}
                   placeholder="mario.rossi@esempio.it"
+                  autoComplete="email"
                 />
+
               </div>
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
             </div>
@@ -126,7 +169,9 @@ export default function Register() {
                   type="password"
                   className={`w-full bg-slate-800/50 border ${errors.password ? 'border-red-500' : 'border-white/10'} rounded-xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-easygig-accent outline-none transition-all`}
                   placeholder="••••••••"
+                  autoComplete="new-password"
                 />
+
               </div>
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
             </div>
@@ -154,7 +199,7 @@ export default function Register() {
                   className="mt-1 w-5 h-5 rounded border-white/10 bg-slate-800 text-easygig-accent focus:ring-easygig-accent cursor-pointer transition-all"
                 />
                 <span className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
-                  Accetto l'informativa sulla privacy e i termini di servizio di EasyGIG per il trattamento dei dati personali.
+                  Accetto l' <Link to="/privacy-policy" className="text-easygig-accent hover:underline">informativa sulla privacy</Link> e i <Link to="/terms-of-service" className="text-easygig-accent hover:underline">termini di servizio</Link> di EasyGIG.
                 </span>
               </label>
               {errors.privacyAccepted && <p className="text-red-500 text-xs mt-1">{errors.privacyAccepted.message}</p>}

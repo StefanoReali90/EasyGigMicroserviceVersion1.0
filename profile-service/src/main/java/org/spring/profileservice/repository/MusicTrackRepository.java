@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MusicTrackRepository extends JpaRepository<MusicTrack, Long> {
+    java.util.List<MusicTrack> findByBandId(Long bandId);
+    java.util.List<MusicTrack> findByArtistId(Long artistId);
 }

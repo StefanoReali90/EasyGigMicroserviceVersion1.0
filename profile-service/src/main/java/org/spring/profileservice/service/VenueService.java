@@ -33,6 +33,8 @@ public class VenueService {
 
     private final PhotoTool photoTool;
 
+    private final CloudinaryService cloudinaryService;
+
     public VenueResponse createVenue(VenueRequest venueRequest) {
         User director = userRepository.findById(venueRequest.directorId())
                 .orElseThrow(() -> new DirectorNotFoundException("Direttore artistico non trovato"));
@@ -111,39 +113,56 @@ public class VenueService {
         }
     }
 
-    public List<VenueResponse> searchVenues(String city, boolean sortByReputation, String name) {
+    public List<VenueResponse> searchVenues(String city, boolean sortByReputation, String name, Integer minCapacity, Integer maxCapacity) {
         List<Venue> venues;
         boolean hasCity = city != null && !city.isBlank();
         boolean hasName = name != null && !name.isBlank();
+        int min = minCapacity != null ? minCapacity : 0;
+        int max = maxCapacity != null ? maxCapacity : Integer.MAX_VALUE;
 
         if (hasCity && hasName) {
-            if (sortByReputation) {
-                venues = venueRepository.findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCaseOrderByDirectorReputationDesc(name, city);
-            } else {
-                venues = venueRepository.findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCase(name, city);
-            }
+            venues = venueRepository.findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCaseAndCapacityBetween(name, city, min, max);
         } else if (hasCity) {
-            if (sortByReputation) {
-                venues = venueRepository.findByAddressCityNameIgnoreCaseOrderByDirectorReputationDesc(city);
-            } else {
-                venues = venueRepository.findByAddressCityNameIgnoreCase(city);
-            }
+            venues = venueRepository.findByAddressCityNameIgnoreCaseAndCapacityBetween(city, min, max);
         } else if (hasName) {
-            if (sortByReputation) {
-                venues = venueRepository.findByNameContainingIgnoreCaseOrderByDirectorReputationDesc(name);
-            } else {
-                venues = venueRepository.findByNameContainingIgnoreCase(name);
-            }
+            venues = venueRepository.findByNameContainingIgnoreCaseAndCapacityBetween(name, min, max);
         } else {
-            if (sortByReputation) {
-                venues = venueRepository.findAllByOrderByDirectorReputationDesc();
-            } else {
-                venues = venueRepository.findAll();
-            }
+            venues = venueRepository.findByCapacityBetween(min, max);
         }
+
+        if (sortByReputation) {
+            // Manual sorting or we could add more repo methods. Manual for simplicity here.
+            venues = new ArrayList<>(venues);
+            venues.sort((v1, v2) -> v2.getDirector().getReputation().compareTo(v1.getDirector().getReputation()));
+        }
+
         return venues.stream()
                 .map(venueMapper::toResponse)
                 .toList();
+    }
+
+    public List<VenueResponse> getVenuesByDirector(Long directorId) {
+        return venueRepository.findByDirectorId(directorId).stream()
+                .map(venueMapper::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public VenueResponse uploadPhotoToVenue(Long venueId, org.springframework.web.multipart.MultipartFile file, boolean isPrimary) throws java.io.IOException {
+        Venue venue = venueRepository.findById(venueId)
+                .orElseThrow(() -> new VenueNotFoundException("Location non trovata"));
+        
+        String url = cloudinaryService.uploadFile(file, "venues");
+        
+        Photo photo = new Photo();
+        photo.setSource(url);
+        photo.setPrimary(isPrimary);
+        venue.addPhoto(photo);
+        
+        photoTool.validatePrimaryPhoto(venue.getPhotos());
+        venueRepository.save(venue);
+        
+        return venueMapper.toResponse(venue);
     }
 }
 

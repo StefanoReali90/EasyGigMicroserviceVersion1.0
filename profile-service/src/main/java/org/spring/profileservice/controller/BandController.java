@@ -13,7 +13,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/bands")
-@CrossOrigin(origins = "http://localhost:5173")
 @Tag(name = "Band Management", description = "API per la gestione delle band e degli artisti")
 public class BandController {
 
@@ -51,28 +50,35 @@ public class BandController {
     }
 
     @PatchMapping(path= "/{userId}/{bandId}/{memberId}")
-    public ResponseEntity<Void> addBandMember(@PathVariable Long bandId, @PathVariable Long memberId, Long userId) {
+    public ResponseEntity<Void> addBandMember(@PathVariable Long userId, @PathVariable Long bandId, @PathVariable Long memberId) {
         bandService.addBandMember(bandId, memberId, userId);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping(path = "/{userId}/{bandId}/{memberId}")
-    public ResponseEntity<Void> deleteBandMember(@PathVariable Long bandId, @PathVariable Long memberId, @PathVariable Long userId) {
-        bandService.removeBandMember(bandId, memberId,userId);
+    public ResponseEntity<Void> deleteBandMember(@PathVariable Long userId, @PathVariable Long bandId, @PathVariable Long memberId) {
+        bandService.removeBandMember(bandId, memberId, userId);
         return ResponseEntity.noContent().build();
     }
+
 
     @GetMapping("/search")
     public ResponseEntity<List<BandSearchResponse>> searchBands(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String city,
-            @RequestParam(required = false) String genre
+            @RequestParam(required = false) String genre,
+            @RequestParam(required = false) Double minReputation,
+            @RequestParam(required = false) Integer maxCachet
     ) {
-        List<BandSearchResponse> response = bandService.searchBands(name, city, genre);
+        List<BandSearchResponse> response = bandService.searchBands(name, city, genre, minReputation, maxCachet);
         return ResponseEntity.ok(response);
     }
 
 
 
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<BandSearchResponse>> getBandsByUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(bandService.getBandsByUser(userId));
+    }
 }

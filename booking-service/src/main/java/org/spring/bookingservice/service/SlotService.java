@@ -82,4 +82,16 @@ public class SlotService {
                 .toList();
         return new AvailableVenuesResponseDTO(ids);
     }
+
+    public List<SlotResponseDTO> getSlotsByVenueAndDate(Long venueId, LocalDate date) {
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.atTime(23, 59, 59);
+        return slotRepository.findByVenueIdAndStartBetween(venueId, start, end).stream()
+                .map(slotMapper::toSlotResponseDTO)
+                .toList();
+    }
+
+    public void deleteSlot(Long slotId) {
+        slotRepository.deleteById(slotId);
+    }
 }

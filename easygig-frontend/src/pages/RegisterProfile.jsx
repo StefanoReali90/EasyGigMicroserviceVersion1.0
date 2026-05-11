@@ -5,6 +5,8 @@ import * as z from "zod";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { Music, MapPin, DollarSign, Info, Phone, Users, Landmark, ArrowRight, ArrowLeft, Search as SearchIcon, Loader2 } from "lucide-react";
+import * as authApi from "../api/auth";
+import * as profileApi from "../api/profile";
 
 // Schemi di validazione dinamici
 const artistSchema = z.object({
@@ -34,13 +36,16 @@ const promoterSchema = z.object({
 
 export default function RegisterProfile() {
   const navigate = useNavigate();
-  const { registrationData, clearRegistrationData } = useAuthStore();
+  const { registrationData, clearRegistrationData, login: setAuth } = useAuthStore();
   
   // Stato per la ricerca città
   const [citySearch, setCitySearch] = useState("");
   const [cities, setCities] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null);
+  const [registrationStep, setRegistrationStep] = useState(1); // 1: Info, 2: Photos
+  const [createdProfileId, setCreatedProfileId] = useState(null);
+
 
   // Effetto per cercare le città dal backend
   useEffect(() => {
@@ -48,9 +53,7 @@ export default function RegisterProfile() {
       if (citySearch.length > 2 && !selectedCity) {
         setIsSearching(true);
         try {
-          // Nota: In produzione useremo l'indirizzo del Gateway
-          const response = await fetch(`http://localhost:8081/cities/search?name=${citySearch}`);
-          const data = await response.json();
+          const data = await profileApi.searchCities(citySearch);
           setCities(data);
         } catch (error) {
           console.error("Errore nel recupero città:", error);
@@ -65,12 +68,7 @@ export default function RegisterProfile() {
     return () => clearTimeout(timer);
   }, [citySearch, selectedCity]);
 
-  // Se non ci sono dati dal primo step, torna indietro
-  if (!registrationData) {
-    return <Navigate to="/register" replace />;
-  }
-
-  const role = registrationData.role;
+  const role = registrationData?.role || "ARTIST";
   const currentSchema = role === "ARTIST" ? artistSchema : role === "DIRECTOR" ? venueSchema : promoterSchema;
 
   const {
@@ -85,6 +83,11 @@ export default function RegisterProfile() {
     }
   });
 
+  // Se non ci sono dati dal primo step, torna indietro (DOPO gli hook)
+  if (!registrationData) {
+    return <Navigate to="/register" replace />;
+  }
+
   const handleCitySelect = (city) => {
     setSelectedCity(city);
     setCitySearch(city.name);
@@ -93,20 +96,68 @@ export default function RegisterProfile() {
   };
 
   const onSubmit = async (profileData) => {
-    const finalData = {
-      ...registrationData,
-      profile: profileData
-    };
-    
-    console.log("Registrazione Finale:", finalData);
-    
-    // Qui andrà la chiamata POST al backend
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    alert("Profilo creato con successo! Benvenuto in EasyGIG.");
-    clearRegistrationData();
-    navigate("/");
+    try {
+      // 1. Registrazione Utente Base
+      await authApi.registerUser({
+        firstName: registrationData.firstName,
+        lastName: registrationData.lastName,
+        email: registrationData.email,
+        password: registrationData.password,
+        role: registrationData.role,
+        privacyAccepted: registrationData.privacyAccepted
+      });
+
+      // 2. Login per ottenere il Token
+      const authResponse = await authApi.login({
+        email: registrationData.email,
+        password: registrationData.password
+      });
+
+      // Salva token e utente nello store
+      setAuth(authResponse.user, authResponse.token);
+
+      // 3. Creazione Profilo Specifico
+      let profileId = null;
+      if (role === "ARTIST") {
+        const band = await profileApi.createBandProfile({
+          ...profileData,
+          memberIds: [authResponse.user.id] // Aggiunge se stesso come primo membro
+        });
+        profileId = band.id;
+      } else if (role === "DIRECTOR") {
+        const venue = await profileApi.createVenueProfile({
+          ...profileData,
+          directorId: authResponse.user.id
+        });
+        profileId = venue.id;
+      } else if (role === "PROMOTER") {
+        const org = await profileApi.createOrganizationProfile(profileData);
+        profileId = org.id;
+      }
+
+      setCreatedProfileId(profileId);
+      
+      // Controllo se c'è un invito pendente
+      const pendingToken = localStorage.getItem('pendingInvitationToken');
+      if (pendingToken && authResponse.user.id) {
+        try {
+          const { acceptInvitation } = await import("../api/invitations");
+          await acceptInvitation(pendingToken, authResponse.user.id);
+          localStorage.removeItem('pendingInvitationToken');
+        } catch (invError) {
+          console.error("Errore accettazione invito post-reg:", invError);
+        }
+      }
+
+      clearRegistrationData();
+      // Invece di navigare, passiamo allo step delle foto
+      setRegistrationStep(2);
+    } catch (error) {
+      console.error("Errore durante la registrazione:", error);
+      alert(error.response?.data?.message || "Si è verificato un errore durante la registrazione.");
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-easygig-dark flex items-center justify-center p-6 text-white font-sans">
@@ -114,15 +165,24 @@ export default function RegisterProfile() {
         
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Completa il tuo Profilo</h1>
-            <p className="text-slate-400">Personalizza la tua presenza come <span className="text-easygig-accent font-bold uppercase">{role}</span></p>
+            <h1 className="text-3xl font-bold">
+              {registrationStep === 1 ? "Completa il tuo Profilo" : "Aggiungi le tue Foto"}
+            </h1>
+            <p className="text-slate-400">
+              {registrationStep === 1 
+                ? `Personalizza la tua presenza come ${role}` 
+                : "Carica almeno una foto per rendere il tuo profilo professionale"}
+            </p>
           </div>
           <div className="bg-easygig-accent/10 p-3 rounded-2xl">
             {role === "ARTIST" ? <Music className="text-easygig-accent" /> : role === "DIRECTOR" ? <Landmark className="text-easygig-accent" /> : <Users className="text-easygig-accent" />}
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {registrationStep === 1 ? (
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* ... existing fields ... */}
+
           
           {/* CAMPO NOME (Comune a tutti) */}
           <div className="space-y-2">
@@ -283,8 +343,35 @@ export default function RegisterProfile() {
             </button>
           </div>
 
-        </form>
+          </form>
+        ) : (
+          <div className="space-y-8 animate-fade-in">
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-2">
+              <PhotoGallery 
+                type={role === 'ARTIST' ? 'BAND' : role === 'DIRECTOR' ? 'VENUE' : 'ORG'} 
+                id={createdProfileId} 
+              />
+            </div>
+
+            <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3">
+              <Info className="text-amber-500 shrink-0" size={20} />
+              <p className="text-xs text-amber-200 leading-relaxed">
+                Ti consigliamo di caricare una foto di alta qualità come immagine principale. 
+                Puoi sempre aggiungere o modificare le tue foto dalla dashboard.
+              </p>
+            </div>
+
+            <button
+              onClick={() => navigate(role === "ARTIST" ? "/dashboard/artist" : role === "DIRECTOR" ? "/dashboard/director" : "/dashboard/promoter")}
+              className="w-full bg-easygig-accent hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-500/20 transition-all flex items-center justify-center gap-3 group text-lg"
+            >
+              Vai alla Dashboard
+              <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

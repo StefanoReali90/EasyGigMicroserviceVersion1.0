@@ -27,4 +27,9 @@ public class BookingOrganizationController {
     public ResponseEntity<OrganizationResponse> getOrganization(@PathVariable Long id) {
         return ResponseEntity.ok(organizationService.getOrganization(id));
     }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<OrganizationResponse>> getOrganizationsByUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(organizationService.getOrganizationsByUser(userId));
+    }
 }

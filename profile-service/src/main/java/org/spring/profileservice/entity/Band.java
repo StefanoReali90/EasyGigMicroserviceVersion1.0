@@ -23,6 +23,9 @@ public class Band implements InvitingGroup {
     @Column(nullable = false)
     private String name;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     /**
      * Compenso richiesto per l'esibizione (valore intero).
      */
@@ -93,8 +96,10 @@ public class Band implements InvitingGroup {
     }
 
     public void addUser(User user) {
-        this.members.add(user);
-        user.getBands().add(this);
+        if (!this.members.contains(user)) {
+            this.members.add(user);
+            user.getBands().add(this);
+        }
     }
 
     public void addPhoto(Photo photo) {

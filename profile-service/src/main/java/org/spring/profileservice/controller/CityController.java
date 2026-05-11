@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/cities")
-@CrossOrigin(origins = "http://localhost:5173")
 public class CityController {
 
     @Autowired
@@ -21,7 +20,14 @@ public class CityController {
     public ResponseEntity<List<CityResponse>> searchCities(@RequestParam String name) {
         List<CityResponse> cities = cityRepository.findByNameContainingIgnoreCase(name)
                 .stream()
-                .limit(10) // Limita a 10 per performance
+                .sorted((c1, c2) -> {
+                    boolean c1Starts = c1.getName().toLowerCase().startsWith(name.toLowerCase());
+                    boolean c2Starts = c2.getName().toLowerCase().startsWith(name.toLowerCase());
+                    if (c1Starts && !c2Starts) return -1;
+                    if (!c1Starts && c2Starts) return 1;
+                    return c1.getName().compareToIgnoreCase(c2.getName());
+                })
+                .limit(20)
                 .map(city -> new CityResponse(city.getId(), city.getName()))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(cities);

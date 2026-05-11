@@ -17,7 +17,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/bookings")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 @Tag(name = "Booking Management", description = "API per la gestione delle richieste di prenotazione tra Artisti, Venue e Promoter")
 public class BookingRequestController {
 
@@ -85,5 +84,28 @@ public class BookingRequestController {
             @RequestBody org.spring.bookingservice.dto.AssignBandToSlotDTO dto) {
         BookingResponse response = bookingRequestService.assignBandToSlot(bookingRequestId, dto);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/venue/{venueId}")
+    @Operation(summary = "Lista richieste per venue", description = "Ritorna tutte le richieste in uno stato specifico per una determinata venue.")
+    public ResponseEntity<List<BookingResponse>> getRequestsByVenue(
+            @PathVariable Long venueId,
+            @RequestParam(defaultValue = "PENDING") org.spring.bookingservice.utility.BookingSlotState status) {
+        return ResponseEntity.ok(bookingRequestService.getRequestsByVenue(venueId, status));
+    }
+
+    @PostMapping("/invite")
+    @Operation(summary = "Invita un artista", description = "La venue invita un artista specifico a suonare in uno slot.")
+    public ResponseEntity<BookingResponse> inviteArtist(
+            @RequestHeader("X-User-Id") Long venueId,
+            @RequestParam Long artistId,
+            @RequestParam Long slotId) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(bookingRequestService.inviteArtist(venueId, artistId, slotId));
+    }
+
+    @GetMapping("/user/{userId}")
+    @Operation(summary = "Lista richieste per utente", description = "Ritorna tutte le richieste effettuate o ricevute da un utente (Artista/Promoter).")
+    public ResponseEntity<List<BookingResponse>> getRequestsByUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(bookingRequestService.getRequestsByUser(userId));
     }
 }

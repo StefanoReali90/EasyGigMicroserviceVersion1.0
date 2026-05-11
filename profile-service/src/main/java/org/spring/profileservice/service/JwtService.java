@@ -29,17 +29,20 @@ public class JwtService {
 
 
     public String generateToken(Map<String, Object> claims, String subject) {
-        int ExpirationTime = Math.toIntExact(TimeUnit.DAYS.toMillis(expiryDays));
+        long expirationTime = TimeUnit.DAYS.toMillis(expiryDays);
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + ExpirationTime))
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     private Key getSigningKey() {
+        if (secretKey == null || secretKey.isBlank()) {
+            throw new IllegalStateException("JWT Secret Key is not configured correctly!");
+        }
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }

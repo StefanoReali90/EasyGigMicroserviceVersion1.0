@@ -15,4 +15,6 @@ public interface BookingRequestRepository extends JpaRepository<BookingRequest,L
     List<BookingRequest> findBySlotIdAndStatusAndIdNot(Long slotId, BookingSlotState status, Long idToExclude);
 
     int countBySlotIdAndStatusAndIdNot(Long id, BookingSlotState bookingSlotState, Long bookingRequestId);
+    List<BookingRequest> findByVenueIdAndStatus(Long venueId, BookingSlotState status);
+    List<BookingRequest> findByUserId(Long userId);
 }

@@ -2,6 +2,8 @@ package org.spring.profileservice.dto;
 
 import org.spring.profileservice.utility.UserType;
 
+import java.util.List;
+
 public record UserResponse(
         Long id,
         String email,
@@ -10,6 +12,9 @@ public record UserResponse(
         UserType role,
         Double reputation,
         Integer reviewCount,
-        java.util.List<TrackResponse> tracks
+        Integer strikes,
+        boolean isBanned,
+        List<TrackResponse> tracks,
+        List<BandResponse> bands
 ) {
 }

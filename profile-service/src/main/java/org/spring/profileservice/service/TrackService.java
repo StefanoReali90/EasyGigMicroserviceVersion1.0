@@ -62,4 +62,12 @@ public class TrackService {
         user.addTrack(track);
         return trackRepository.save(track);
     }
+
+    public java.util.List<MusicTrack> getTracksByBand(Long bandId) {
+        return trackRepository.findByBandId(bandId);
+    }
+
+    public java.util.List<MusicTrack> getTracksByArtist(Long userId) {
+        return trackRepository.findByArtistId(userId);
+    }
 }

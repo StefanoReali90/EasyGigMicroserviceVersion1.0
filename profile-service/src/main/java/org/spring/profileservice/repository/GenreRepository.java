@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface GenreRepository extends JpaRepository<Genre, Long> {
      boolean existsByName(String name);
+     java.util.Optional<Genre> findByNameIgnoreCase(String name);
 
     List<Genre> findAllByIdIn(List<Long> longs);
 }

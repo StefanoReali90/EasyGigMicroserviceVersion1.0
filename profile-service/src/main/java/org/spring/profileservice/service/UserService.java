@@ -33,6 +33,8 @@ public class UserService {
     private final AccountStatusMapper accountStatusMapper;
     private final StateAccountRepository stateAccountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final org.spring.profileservice.repository.PasswordResetTokenRepository tokenRepository;
+    private final java.util.UUID uuidProvider = java.util.UUID.randomUUID(); // For token generation
 
     /**
      * Valida le credenziali dell'utente e genera un token JWT di sessione.
@@ -48,7 +50,10 @@ public class UserService {
             throw new UnauthorizedException("Credenziali non valide");
         }
 
-        String token = jwtService.generateToken(new HashMap<>(), user.getEmail());
+        java.util.Map<String, Object> claims = new java.util.HashMap<>();
+        claims.put("userId", user.getId());
+        
+        String token = jwtService.generateToken(claims, user.getEmail());
         return new AuthResponse(token, userMapper.toResponse(user));
     }
 
@@ -126,7 +131,7 @@ public class UserService {
         StateAccount stateAccount = user.getStateAccount();
         stateAccount.setStrikes(stateAccount.getStrikes() + 1);
         
-        if (stateAccount.getStrikes() >= 3) {
+        if (stateAccount.getStrikes() >= 5) {
             stateAccount.setBanned(true);
             int banDays = (stateAccount.getLastBanDate() != null) ? 14 : 7;
             stateAccount.setBanUntil(LocalDate.now().plusDays(banDays));
@@ -165,6 +170,39 @@ public class UserService {
         user.setReputation(Math.round(newReputation * 10.0) / 10.0);
         user.setReviewCount(reviewCount + 1);
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void createPasswordResetTokenForUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("Email non trovata"));
+        
+        tokenRepository.deleteByUser(user); // Rimuovi eventuali token vecchi
+        
+        String token = java.util.UUID.randomUUID().toString();
+        org.spring.profileservice.entity.PasswordResetToken myToken = new org.spring.profileservice.entity.PasswordResetToken(token, user);
+        tokenRepository.save(myToken);
+        
+        // In una versione reale qui invieresti la mail.
+        // Per ora logghiamo il token per permettere il test.
+        System.out.println("DEBUG: Token di recupero per " + email + " -> " + token);
+    }
+
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        org.spring.profileservice.entity.PasswordResetToken resetToken = tokenRepository.findByToken(token)
+                .orElseThrow(() -> new InvalidTokenException("Token non valido"));
+        
+        if (resetToken.isExpired()) {
+            tokenRepository.delete(resetToken);
+            throw new InvalidTokenException("Token scaduto");
+        }
+        
+        User user = resetToken.getUser();
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        
+        tokenRepository.delete(resetToken);
     }
 }
 

@@ -23,4 +23,7 @@ public class Photo {
 
     @ManyToOne //relazione molti a uno con le venue
     private Venue venue;
+
+    @ManyToOne //relazione molti a uno con le organizzazioni (promoter)
+    private BookingOrganization organization;
 }

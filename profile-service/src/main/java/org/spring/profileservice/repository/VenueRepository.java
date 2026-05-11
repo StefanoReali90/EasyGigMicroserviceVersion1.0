@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+
 @Repository
 public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findByDirectorId(Long directorId);
@@ -15,6 +16,9 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findByNameContainingIgnoreCase(String name);
     List<Venue> findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCase(String name, String cityName);
     List<Venue> findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCaseOrderByDirectorReputationDesc(String name, String cityName);
-
-
+    
+    List<Venue> findByCapacityBetween(Integer min, Integer max);
+    List<Venue> findByAddressCityNameIgnoreCaseAndCapacityBetween(String city, Integer min, Integer max);
+    List<Venue> findByNameContainingIgnoreCaseAndCapacityBetween(String name, Integer min, Integer max);
+    List<Venue> findByNameContainingIgnoreCaseAndAddressCityNameIgnoreCaseAndCapacityBetween(String name, String city, Integer min, Integer max);
 }

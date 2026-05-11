@@ -4,8 +4,12 @@ server:
 spring:
   application:
     name: profile-service
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   datasource:
-    url: jdbc:postgresql://localhost:5432/easygig-profiles
+    url: jdbc:postgresql://postgres:5432/easygig-profiles
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD}
   jpa:
@@ -13,7 +17,7 @@ spring:
       ddl-auto: update
     show-sql: true
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -27,7 +31,7 @@ logging:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://eureka-server:8761/eureka
   instance:
     prefer-ip-address: true
 
@@ -38,7 +42,7 @@ application:
     expiry-days: 7
   security:
     jwt:
-      secret-key: ${JWT_SECRET_KEY}
+      secret-key: ${JWT_SECRET_KEY:4AwcRJEcJ4pU9iPtoQ7mUDRB+Suf0vNYP0h6uXX4ejo=}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME}

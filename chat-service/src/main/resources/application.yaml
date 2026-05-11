@@ -4,17 +4,9 @@ server:
 spring:
   application:
     name: chat-service
-
-logging:
-  file:
-    name: logs/chat-service.log
-  pattern:
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-
   data:
     mongodb:
       uri: mongodb://mongo:27017/easygig-chat
-
   kafka:
     bootstrap-servers: kafka:29092
     consumer:
@@ -24,6 +16,13 @@ logging:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+
+logging:
+  file:
+    name: logs/chat-service.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
 eureka:
   client:
     service-url:

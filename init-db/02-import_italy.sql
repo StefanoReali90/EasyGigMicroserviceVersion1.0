@@ -1,3 +1,5 @@
+\c "easygig-profiles"
+
 -- Italian Cities Import Script
 INSERT INTO nation (id, name) VALUES (1, 'Italia') ON CONFLICT (id) DO NOTHING;
 INSERT INTO region (id, name, nation_id) VALUES (1, 'Piemonte', 1) ON CONFLICT (id) DO NOTHING;

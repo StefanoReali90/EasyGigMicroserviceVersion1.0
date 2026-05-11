@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 @Tag(name = "Authentication", description = "Endpoint per la sicurezza e il rilascio dei token di accesso")
 public class AuthController {
 
@@ -30,5 +29,19 @@ public class AuthController {
     @Operation(summary = "Autenticazione utente", description = "Verifica le credenziali e genera un token JWT per le sessioni successive.")
     public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
         return ResponseEntity.ok(userService.authenticate(request));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Richiesta recupero password", description = "Genera un token di reset e lo associa all'utente.")
+    public ResponseEntity<Void> forgotPassword(@RequestParam String email) {
+        userService.createPasswordResetTokenForUser(email);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password", description = "Valida il token e aggiorna la password dell'utente.")
+    public ResponseEntity<Void> resetPassword(@RequestParam String token, @RequestParam String newPassword) {
+        userService.resetPassword(token, newPassword);
+        return ResponseEntity.ok().build();
     }
 }

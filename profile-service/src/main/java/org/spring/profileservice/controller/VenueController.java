@@ -13,7 +13,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/venues")
-@CrossOrigin(origins = "http://localhost:5173")
 @Tag(name = "Venue Management", description = "API per la gestione dei locali e delle location")
 public class VenueController {
 
@@ -48,9 +47,25 @@ public class VenueController {
     public ResponseEntity<List<VenueResponse>> getVenues(
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String name,
+            @RequestParam(required = false) Integer minCapacity,
+            @RequestParam(required = false) Integer maxCapacity,
             @RequestParam(required = false, defaultValue = "false") boolean sortByReputation) {
 
-        List<VenueResponse> response = venueService.searchVenues(city, sortByReputation, name);
+        List<VenueResponse> response = venueService.searchVenues(city, sortByReputation, name, minCapacity, maxCapacity);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping(path = "/director/{directorId}", produces = "application/json")
+    public ResponseEntity<List<VenueResponse>> getVenuesByDirector(@PathVariable Long directorId) {
+        List<VenueResponse> response = venueService.getVenuesByDirector(directorId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{venueId}/photos")
+    public ResponseEntity<VenueResponse> uploadPhotoToVenue(
+            @PathVariable Long venueId,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(defaultValue = "false") boolean isPrimary) throws java.io.IOException {
+        return ResponseEntity.ok(venueService.uploadPhotoToVenue(venueId, file, isPrimary));
     }
 }

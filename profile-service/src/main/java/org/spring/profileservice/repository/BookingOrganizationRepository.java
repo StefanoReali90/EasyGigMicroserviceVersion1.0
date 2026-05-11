@@ -10,4 +10,5 @@ import java.util.List;
 public interface BookingOrganizationRepository extends JpaRepository<BookingOrganization, Long> {
     List<BookingOrganization> findByNameContainingIgnoreCase(String name);
     List<BookingOrganization> findByCityNameIgnoreCase(String cityName);
+    List<BookingOrganization> findByPromotersId(Long userId);
 }
