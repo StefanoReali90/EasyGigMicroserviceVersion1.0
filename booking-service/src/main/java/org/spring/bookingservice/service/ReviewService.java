@@ -64,7 +64,7 @@ public class ReviewService {
         review.setRole(createReviewDTO.role());
 
         reviewRepository.save(review);
-        ReviewCreatedEvent eventsend = new ReviewCreatedEvent(reviewedId, rate);
+        ReviewCreatedEvent eventsend = new ReviewCreatedEvent(reviewedId, rate, createReviewDTO.role());
         bookingProducer.sendReviewEvent(eventsend);
 
         return reviewMapper.toReviewResponseDTO(review);
