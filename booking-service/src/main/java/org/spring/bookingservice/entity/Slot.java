@@ -34,6 +34,11 @@ public class Slot {
      */
     private Long venueId;
 
+    /**
+     * Identificativo del Direttore (User) proprietario della Venue al momento della creazione.
+     */
+    private Long directorId;
+
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "slot")
     private List<BookingRequest> bookingRequests = new ArrayList<>();
 

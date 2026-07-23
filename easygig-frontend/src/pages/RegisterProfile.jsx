@@ -23,6 +23,9 @@ const venueSchema = z.object({
   capacity: z.coerce.number().min(1, "La capienza deve essere maggiore di 0"),
   equipment: z.string().min(10, "Descrivi brevemente l'attrezzatura tecnica"),
   type: z.enum(["STANDING", "SEATED", "TABLES", "MIXED"]),
+  street: z.string().min(2, "La via è obbligatoria"),
+  houseNumber: z.string().min(1, "Il numero civico è obbligatorio"),
+  zipCode: z.string().min(5, "Il CAP deve essere di 5 cifre").max(5, "Il CAP deve essere di 5 cifre"),
   cityId: z.coerce.number().min(1, "Seleziona una città dalla lista"),
 });
 
@@ -249,6 +252,20 @@ export default function RegisterProfile() {
                   <option value="TABLES">Tavoli (Cena/Concerto)</option>
                   <option value="MIXED">Misto</option>
                 </select>
+              </div>
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-1 space-y-2">
+                  <label className="text-sm font-medium text-slate-300">Via/Piazza</label>
+                  <input {...register("street")} className={`w-full bg-slate-800/50 border ${errors.street ? 'border-red-500' : 'border-white/10'} rounded-xl py-3 px-4 outline-none`} placeholder="Es: Via Roma" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">Civico</label>
+                  <input {...register("houseNumber")} className={`w-full bg-slate-800/50 border ${errors.houseNumber ? 'border-red-500' : 'border-white/10'} rounded-xl py-3 px-4 outline-none`} placeholder="12" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">CAP</label>
+                  <input {...register("zipCode")} className={`w-full bg-slate-800/50 border ${errors.zipCode ? 'border-red-500' : 'border-white/10'} rounded-xl py-3 px-4 outline-none`} placeholder="00100" />
+                </div>
               </div>
               <div className="md:col-span-2 space-y-2">
                 <label className="text-sm font-medium text-slate-300 flex items-center gap-2">

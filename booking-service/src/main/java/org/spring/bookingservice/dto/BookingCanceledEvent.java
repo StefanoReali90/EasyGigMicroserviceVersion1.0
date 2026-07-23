@@ -6,6 +6,8 @@ public record BookingCanceledEvent(
         Long slotId,
         Long venueId,
         String canceledBy,
-        String cancellationReason
+        String cancellationReason,
+        String previousStatus,
+        boolean isLateCancellation
 ) {
 }

@@ -17,15 +17,20 @@ spring:
             allowedOrigins: 
               - "http://localhost:4200"
               - "http://localhost:5173"
+              - "http://localhost:5174"
               - "http://127.0.0.1:5173"
+              - "http://127.0.0.1:5174"
             allowedMethods:
               - GET
               - POST
               - PUT
               - DELETE
+              - PATCH
               - OPTIONS
             allowedHeaders: "*"
             allowCredentials: true
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_LAST
       discovery:
         locator:
           enabled: true
@@ -35,7 +40,7 @@ spring:
         - id: profile-service-public
           uri: lb://profile-service
           predicates:
-            - Path=/auth/**,/users/**,/cities/**,/genres/**,/bands/search,/venues/search
+            - Path=/auth/**,/users/**,/cities/**,/genres/**,/bands/search,/venues/search,/organizations/search
 
         - id: profile-service-bands
           uri: lb://profile-service
@@ -48,6 +53,22 @@ spring:
           uri: lb://profile-service
           predicates:
             - Path=/venues/**
+          filters:
+            - AuthenticationFilter
+
+        - id: profile-service-organizations
+          uri: lb://profile-service
+          predicates:
+            - Path=/organizations/**
+          filters:
+            - AuthenticationFilter
+
+        - id: profile-service-invitations
+          uri: lb://profile-service
+          predicates:
+            - Path=/invitations/**
+          filters:
+            - AuthenticationFilter
 
         - id: profile-service-photos
           uri: lb://profile-service

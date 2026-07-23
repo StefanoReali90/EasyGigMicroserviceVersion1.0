@@ -7,6 +7,6 @@ public record CalendarResponseDTO(
         Long venueId,
         int month,
         int year,
-        Map<LocalDate, String> availabilityMap
+        Map<String, String> calendarColors
 ) {
 }

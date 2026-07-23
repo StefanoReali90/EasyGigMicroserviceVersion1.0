@@ -123,4 +123,43 @@ class UserServiceTest {
         assertThrows(InvalidTokenException.class, () -> userService.registerUser(registrationRequest, token));
         verify(userRepository, never()).save(any(User.class));
     }
+
+    @Test
+    void addStrikes_ShouldIncrementStrike_WhenUserExists() {
+        // Arrange
+        org.spring.profileservice.entity.StateAccount state = new org.spring.profileservice.entity.StateAccount();
+        state.setStrikes(0);
+        state.setBanned(false);
+        user.setStateAccount(state);
+        
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        // Act
+        userService.addStrikes(1L);
+
+        // Assert
+        assertEquals(1, state.getStrikes());
+        assertFalse(state.isBanned());
+        verify(stateAccountRepository, times(1)).save(state);
+    }
+
+    @Test
+    void addStrikes_ShouldBanUser_WhenStrikesReachFive() {
+        // Arrange
+        org.spring.profileservice.entity.StateAccount state = new org.spring.profileservice.entity.StateAccount();
+        state.setStrikes(4); // L'utente ha già 4 strike
+        state.setBanned(false);
+        user.setStateAccount(state);
+        
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        // Act
+        userService.addStrikes(1L);
+
+        // Assert
+        assertEquals(5, state.getStrikes());
+        assertTrue(state.isBanned());
+        assertNotNull(state.getBanUntil());
+        verify(stateAccountRepository, times(1)).save(state);
+    }
 }

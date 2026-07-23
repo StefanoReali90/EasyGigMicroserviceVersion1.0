@@ -9,9 +9,16 @@ const api = axios.create({
 
 // Interceptor per aggiungere il token JWT se presente
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const authData = localStorage.getItem('easygig-auth-storage');
+  if (authData) {
+    try {
+      const { state } = JSON.parse(authData);
+      if (state && state.token) {
+        config.headers.Authorization = `Bearer ${state.token}`;
+      }
+    } catch (e) {
+      console.error("Errore parsing auth storage:", e);
+    }
   }
   return config;
 });

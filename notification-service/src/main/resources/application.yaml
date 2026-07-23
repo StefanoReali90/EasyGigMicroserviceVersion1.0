@@ -37,7 +37,9 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "*"
+        spring.json.trusted.packages: "org.spring.*"
+        spring.json.use.type.headers: "true"
+        spring.json.type.mapping: "org.spring.bookingservice.dto.BookingCanceledEvent:org.spring.notificationservice.dto.BookingCanceledEvent,org.spring.bookingservice.dto.BookingAcceptedEvent:org.spring.notificationservice.dto.BookingAcceptedEvent,org.spring.bookingservice.dto.BookingRejectedEvent:org.spring.notificationservice.dto.BookingRejectedEvent,org.spring.bookingservice.dto.BookingRequestCreatedEvent:org.spring.notificationservice.dto.BookingRequestCreatedEvent,org.spring.bookingservice.dto.BookingExpiredEvent:org.spring.notificationservice.dto.BookingExpiredEvent"
 
 logging:
   file:

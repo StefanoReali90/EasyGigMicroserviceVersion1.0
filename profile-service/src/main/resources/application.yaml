@@ -21,6 +21,14 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: profile-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "org.spring.*"
+        spring.json.use.type.headers: "true"
+        spring.json.type.mapping: "org.spring.bookingservice.dto.BookingCanceledEvent:org.spring.profileservice.dto.BookingCanceledEvent,org.spring.bookingservice.dto.ReviewCreatedEvent:org.spring.profileservice.dto.ReviewCreatedEvent,org.spring.bookingservice.dto.BookingExpiredEvent:org.spring.profileservice.dto.BookingExpiredEvent"
 
 logging:
   file:
@@ -31,7 +39,7 @@ logging:
 eureka:
   client:
     service-url:
-      defaultZone: http://eureka-server:8761/eureka
+      defaultZone: http://discovery-server:8761/eureka
   instance:
     prefer-ip-address: true
 

@@ -1,8 +1,10 @@
 package org.spring.profileservice.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.spring.profileservice.dto.OrganizationRequest;
 import org.spring.profileservice.dto.OrganizationResponse;
 import org.spring.profileservice.service.BookingOrganizationService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +16,15 @@ import java.util.List;
 public class BookingOrganizationController {
 
     private final BookingOrganizationService organizationService;
+
+    @PostMapping(path = "/", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<OrganizationResponse> createOrganization(
+            @RequestBody OrganizationRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) Long userIdHeader) {
+        Long promoterId = request.promoterId() != null ? request.promoterId() : userIdHeader;
+        OrganizationResponse response = organizationService.createOrganization(request, promoterId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 
     @GetMapping("/search")
     public ResponseEntity<List<OrganizationResponse>> searchOrganizations(

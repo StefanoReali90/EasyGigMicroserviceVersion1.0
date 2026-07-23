@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
 import * as bookingApi from '../api/bookings';
 import * as chatApi from '../api/chat';
+import * as venueApi from '../api/venues';
 import { 
   MessageSquare, 
   Send, 
@@ -16,6 +17,7 @@ import SockJS from 'sockjs-client';
 import { useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../utility/errorHandler';
 import UserMenu from '../components/UserMenu';
+
 
 
 
@@ -37,9 +39,19 @@ export default function Messages() {
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        const bookings = await bookingApi.getUserBookings(user.id);
-        const accepted = bookings.filter(b => b.status === 'ACCEPTED');
-        setConversations(accepted);
+        if (user.role === 'DIRECTOR') {
+          const venues = await venueApi.getVenuesByDirector(user.id);
+          const allBookingsPromises = venues.map(venue => 
+            bookingApi.getVenueRequests(venue.id, 'ACCEPTED')
+          );
+          const bookingsLists = await Promise.all(allBookingsPromises);
+          const accepted = bookingsLists.flat();
+          setConversations(accepted);
+        } else {
+          const bookings = await bookingApi.getUserBookings(user.id);
+          const accepted = bookings.filter(b => b.status === 'ACCEPTED');
+          setConversations(accepted);
+        }
       } catch (error) {
         console.error("Errore recupero conversazioni:", error);
         // Trattiamo l'errore come assenza di chat per una UX più pulita
@@ -162,7 +174,7 @@ export default function Messages() {
                   {user.role === 'ARTIST' ? <Landmark size={20} /> : <Music size={20} />}
                 </div>
                 <div className="text-left flex-1 min-w-0">
-                  <p className="font-bold truncate">Prenotazione #{chat.bookingId.substring(0, 8)}</p>
+                  <p className="font-bold truncate">Prenotazione #{String(chat.bookingId).substring(0, 8)}</p>
                   <p className="text-[10px] text-slate-500 uppercase font-bold truncate">
                     {format(new Date(chat.slotStart || chat.createdAt), 'dd MMMM yyyy')}
                   </p>
@@ -182,7 +194,7 @@ export default function Messages() {
               <div className="flex items-center gap-4">
                 <button onClick={() => setActiveChat(null)} className="md:hidden p-2 hover:bg-white/5 rounded-full"><ChevronLeft /></button>
                 <div>
-                  <h3 className="font-black uppercase tracking-tight">Booking #{activeChat.bookingId.substring(0, 8)}</h3>
+                  <h3 className="font-black uppercase tracking-tight">Booking #{String(activeChat.bookingId).substring(0, 8)}</h3>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${stompClient.current?.connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
@@ -203,16 +215,24 @@ export default function Messages() {
                   <p className="italic font-medium">Invia il primo messaggio per iniziare a organizzare l'evento.</p>
                 </div>
               ) : (
-                messages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                    <div className={`max-w-[75%] p-5 rounded-[2rem] shadow-xl ${msg.senderId === user.id ? 'bg-easygig-accent text-white rounded-tr-none shadow-indigo-500/10' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-white/5 shadow-black/20'}`}>
-                      <p className="text-sm leading-relaxed">{msg.content}</p>
-                      <p className={`text-[9px] mt-3 font-bold uppercase opacity-40 ${msg.senderId === user.id ? 'text-right' : 'text-left'}`}>
-                        {format(new Date(msg.timestamp), 'HH:mm')}
-                      </p>
+                messages.map((msg, idx) => {
+                  const isMe = String(msg.senderId) === String(user.id);
+                  console.log("EasyGIG Chat Debug:", { msgSenderId: msg.senderId, currentUserId: user.id, isMe, content: msg.content });
+                  return (
+                    <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+                      <div className={`max-w-[70%] p-3.5 rounded-2xl shadow-md relative group transition-all ${
+                        isMe 
+                          ? 'bg-[#005c4b] text-white rounded-tr-none' 
+                          : 'bg-[#202c33] text-slate-100 rounded-tl-none border border-white/[0.03]'
+                      }`}>
+                        <p className="text-sm pr-12 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                        <span className="absolute bottom-1.5 right-2.5 text-[9px] font-medium text-white/50 select-none">
+                          {format(new Date(msg.timestamp), 'HH:mm')}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
               <div ref={scrollRef} />
             </div>

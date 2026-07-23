@@ -24,14 +24,28 @@ public class BookingEventConsumer {
 
     @KafkaListener(topics = "booking-canceled-topic", groupId = "profile-group")
     public void consumeBookingCanceled(BookingCanceledEvent event) {
+        boolean isConfirmedBooking = "ACCEPTED".equals(event.previousStatus());
+        
         if ("VENUE".equals(event.canceledBy())) {
-            venueRepository.findById(event.venueId()).ifPresent(venue -> {
-                Long directorId = venue.getDirector().getId();
-                System.out.println("Cancellazione da parte del locale: " + venue.getName() + ". Strike assegnato al direttore ID: " + directorId);
-                userService.addStrikes(directorId);
-            });
-        } else {
-            System.out.println("Cancellazione da parte dell'utente ID: " + event.userId() + ". Nessuno strike assegnato.");
+            // Un locale riceve uno strike solo se cancella un booking già accettato
+            if (isConfirmedBooking) {
+                venueRepository.findById(event.venueId()).ifPresent(venue -> {
+                    Long directorId = venue.getDirector().getId();
+                    System.out.println("[STRIKE] Cancellazione di evento CONFERMATO da parte del locale: " + venue.getName() + ". Strike al direttore ID: " + directorId);
+                    userService.addStrikes(directorId);
+                });
+            } else {
+                System.out.println("[INFO] Cancellazione di richiesta pendente da parte del locale. Nessuno strike.");
+            }
+        } else if ("USER".equals(event.canceledBy())) {
+            // Un artista riceve uno strike solo se cancella un booking accettato a meno di 48h (Late Cancellation)
+            if (isConfirmedBooking && event.isLateCancellation()) {
+                System.out.println("[STRIKE] Late Cancellation di evento CONFERMATO da parte dell'artista ID: " + event.userId() + ". Strike assegnato.");
+                userService.addStrikes(event.userId());
+            } else {
+                String reason = !isConfirmedBooking ? "richiesta non ancora confermata" : "cancellazione entro i termini (48h)";
+                System.out.println("[INFO] Cancellazione artista senza strike: " + reason);
+            }
         }
     }
 }

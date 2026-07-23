@@ -17,6 +17,16 @@ buildNumber.properties
 
 # Log files
 *.log
+logs/
+
+# Node & Build artifacts
+node_modules/
+dist/
+easygig-test-automation/node_modules/
+easygig-test-automation/dist/
+easygig-test-automation/allure-results/
+easygig-test-automation/allure-report/
+easygig-test-automation/.features-gen/
 
 # Operating System
 .DS_Store

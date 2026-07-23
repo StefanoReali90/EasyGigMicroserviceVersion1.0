@@ -24,7 +24,7 @@ public class BookingEventConsumer {
         ChatMessage chatMessage = ChatMessage.builder()
                 .bookingId(event.bookingId().toString())
                 .senderId("system")
-                .recipientId(event.musicianId().toString())
+                .recipientId(event.userId().toString())
                 .content("La tua prenotazione è stata accettata!")
                 .timestamp(LocalDateTime.now())
                 .build();

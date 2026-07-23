@@ -8,14 +8,15 @@ export default function NotificationCenter({ userId }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [serviceAvailable, setServiceAvailable] = useState(true);
 
   useEffect(() => {
-    if (userId) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
-      return () => clearInterval(interval);
-    }
-  }, [userId]);
+    if (!userId || !serviceAvailable) return;
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, [userId, serviceAvailable]);
 
   const fetchNotifications = async () => {
     try {
@@ -26,6 +27,12 @@ export default function NotificationCenter({ userId }) {
       setNotifications(data);
       setUnreadCount(count);
     } catch (error) {
+      const status = error?.response?.status;
+      if (status === 401 || status === 503 || status === 404) {
+        // Servizio non disponibile o token non valido per le notifiche — interrompi il polling silenziosamente
+        setServiceAvailable(false);
+        return;
+      }
       console.error("Errore caricamento notifiche:", error);
     }
   };

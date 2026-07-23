@@ -33,7 +33,7 @@ public class ChatMessageController {
         chatMessage.setTimestamp(LocalDateTime.now());
         chatMessage.setBookingId(bookingId);
         chatMessageRepository.save(chatMessage);
-        simpMessagingTemplate.convertAndSend("/topic/messages" + bookingId, chatMessage);
+        simpMessagingTemplate.convertAndSend("/topic/messages/" + bookingId, chatMessage);
     }
 }
 

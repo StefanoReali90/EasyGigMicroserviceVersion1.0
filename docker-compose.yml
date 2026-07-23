@@ -60,6 +60,15 @@ services:
       retries: 20
     networks:
       - easygig-network
+  # --- OBSERVABILITY ---
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: easygig-zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - easygig-network
+      
   # --- MICROSERVIZI ---
   api-gateway:
     build:
@@ -75,6 +84,8 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: 1.0
     networks:
       - easygig-network
 
@@ -125,6 +136,8 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: 1.0
     networks:
       - easygig-network
     volumes:

@@ -23,3 +23,13 @@ export const uploadVenuePhoto = async (venueId, file, isPrimary = false) => {
   return response.data;
 };
 
+export const getVenues = async () => {
+  const response = await api.get('/venues');
+  return response.data;
+};
+
+export const getVenueById = async (id) => {
+  const response = await api.get(`/venues/${id}`);
+  return response.data;
+};
+

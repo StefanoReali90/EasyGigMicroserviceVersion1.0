@@ -76,6 +76,11 @@ public class BookingRequestService {
         BookingRequest bookingRequest = bookingRequestRepository.findById(bookingRequestId).orElseThrow(() -> new BookingRequestNotFound("Booking Request non trovato"));
         Slot slot = bookingRequest.getSlot();
         
+        // Verifica autorizzazione: l'utente deve essere il direttore che ha creato lo slot
+        if (slot.getDirectorId() != null && !slot.getDirectorId().equals(userId)) {
+            throw new SlotNotBeCancelledException("Non sei autorizzato ad accettare prenotazioni per questo locale");
+        }
+        
         // Verifica disponibilità dello slot per prevenire double-booking
         if (bookingRequest.getStatus() != BookingSlotState.PENDING && slot.getState() == SlotState.BOOKED) {
             throw new SlotAlredyBookedException("Questo Slot è stato già accettato");
@@ -109,33 +114,37 @@ public class BookingRequestService {
         if (!bookingRequest.getUserId().equals(userId)) {
             throw new SlotNotBeCancelledException("Non puoi cancellare questa prenotazione, non sei autorizzato");
         }
+        
+        String previousStatus = bookingRequest.getStatus().toString();
         Slot slot = bookingRequest.getSlot();
         LocalDateTime dataAttuale = LocalDateTime.now();
-        if (dataAttuale.isAfter(slot.getStart().minusDays(2))) {
-            throw new SlotNotBeCancelledException("Non puoi cancellare questa prenotazione, tempo massimo superato");
+        boolean isLateCancellation = dataAttuale.isAfter(slot.getStart().minusDays(2));
+
+        if (isLateCancellation) {
+            throw new SlotNotBeCancelledException("Non puoi cancellare l'evento a meno di 48 ore dall'inizio. Contatta direttamente il Direttore Artistico del locale.");
         }
+
         bookingRequest.setStatus(BookingSlotState.CANCELED);
         if (slot.getState() == SlotState.BOOKED) {
             slot.setState(SlotState.AVAILABLE);
-
         } else {
             int otherRequestInPending = bookingRequestRepository.countBySlotIdAndStatusAndIdNot(slot.getId(), BookingSlotState.PENDING, bookingRequestId);
-            if (otherRequestInPending == 0) {
-                slot.setState(SlotState.AVAILABLE);
-            } else {
-                slot.setState(SlotState.PENDING);
-            }
+            slot.setState(otherRequestInPending == 0 ? SlotState.AVAILABLE : SlotState.PENDING);
         }
+        
         bookingRequest.setCancellationReason(reason);
         slotRepository.save(slot);
         bookingRequestRepository.save(bookingRequest);
+        
         BookingCanceledEvent event = new BookingCanceledEvent(
                 bookingRequest.getId(),
                 bookingRequest.getUserId(),
                 slot.getId(),
                 bookingRequest.getVenueId(),
                 "USER",
-                reason
+                reason,
+                previousStatus,
+                false // L'evento ora scatta solo se >= 48h (nessuno strike all'artista)
         );
         bookingProducer.sendCanceledEvent(event);
         return bookingMapper.toBookingResponse(bookingRequest);
@@ -143,31 +152,36 @@ public class BookingRequestService {
 
     public BookingResponse cancelRequestByVenue(Long userId, Long bookingRequestId, String reason) {
         BookingRequest bookingRequest = bookingRequestRepository.findById(bookingRequestId).orElseThrow(() -> new BookingRequestNotFound("Booking Request non trovato"));
-        if (!bookingRequest.getVenueId().equals(userId)) {
+        Slot slot = bookingRequest.getSlot();
+        if (!bookingRequest.getVenueId().equals(userId) && (slot.getDirectorId() == null || !slot.getDirectorId().equals(userId))) {
             throw new SlotNotBeCancelledException("Non puoi cancellare questa prenotazione, non sei autorizzato");
         }
-        Slot slot = bookingRequest.getSlot();
+        
+        String previousStatus = bookingRequest.getStatus().toString();
+        LocalDateTime dataAttuale = LocalDateTime.now();
+        boolean isLateCancellation = dataAttuale.isAfter(slot.getStart().minusDays(2));
+
         bookingRequest.setStatus(BookingSlotState.CANCELED);
         if (slot.getState() == SlotState.BOOKED) {
             slot.setState(SlotState.AVAILABLE);
         } else {
             int otherRequestInPending = bookingRequestRepository.countBySlotIdAndStatusAndIdNot(slot.getId(), BookingSlotState.PENDING, bookingRequestId);
-            if (otherRequestInPending == 0) {
-                slot.setState(SlotState.AVAILABLE);
-            } else {
-                slot.setState(SlotState.PENDING);
-            }
+            slot.setState(otherRequestInPending == 0 ? SlotState.AVAILABLE : SlotState.PENDING);
         }
+        
         bookingRequest.setCancellationReason(reason);
         slotRepository.save(slot);
         bookingRequestRepository.save(bookingRequest);
+        
         BookingCanceledEvent event = new BookingCanceledEvent(
                 bookingRequest.getId(),
                 bookingRequest.getUserId(),
                 slot.getId(),
                 bookingRequest.getVenueId(),
                 "VENUE",
-                reason
+                reason,
+                previousStatus,
+                isLateCancellation
         );
         bookingProducer.sendCanceledEvent(event);
         return bookingMapper.toBookingResponse(bookingRequest);
@@ -177,14 +191,16 @@ public class BookingRequestService {
         BookingRequest bookingRequest = bookingRequestRepository
                 .findById(bookingRequestId)
                 .orElseThrow(() -> new BookingRequestNotFound("Booking Request non trovato"));
-        if (!bookingRequest.getVenueId().equals(userId)) {
-            throw new SlotNotBeCancelledException("Non puoi rifiutare questa prenotazione, non sei autorizzato");
+        Slot slot = bookingRequest.getSlot();
+
+        if (slot.getDirectorId() != null && !slot.getDirectorId().equals(userId)) {
+            throw new SlotNotBeCancelledException("Non sei autorizzato a rifiutare prenotazioni per questo locale");
         }
+
         if (bookingRequest.getStatus() != BookingSlotState.PENDING) {
             throw new SlotNotBeCancelledException("Questa prenotazione non è più in attesa di risposta");
         }
         bookingRequest.setStatus(BookingSlotState.REJECTED);
-        Slot slot = bookingRequest.getSlot();
         int otherPending = bookingRequestRepository.countBySlotIdAndStatusAndIdNot(slot.getId(), BookingSlotState.PENDING, bookingRequestId);
 
         slot.setState(otherPending == 0 ? SlotState.AVAILABLE : SlotState.PENDING);

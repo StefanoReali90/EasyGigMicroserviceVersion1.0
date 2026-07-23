@@ -18,3 +18,8 @@ export const getSlotsByVenueAndDate = async (venueId, date) => {
   const response = await api.get(`/slots/venue/${venueId}/date/${date}`);
   return response.data;
 };
+
+export const getSlotsByVenue = async (venueId) => {
+  const response = await api.get(`/slots/venue/${venueId}`);
+  return response.data;
+};

@@ -16,14 +16,15 @@ import java.util.List;
 @RestController
 @RequestMapping(path= "/slots")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class SlotController {
 
     private final SlotService slotService;
 
     @PostMapping
-    public ResponseEntity<SlotResponseDTO> createSlot(@RequestBody CreateSlotRequestDTO requestDTO) {
-        SlotResponseDTO response = slotService.createSlot(requestDTO);
+    public ResponseEntity<SlotResponseDTO> createSlot(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody CreateSlotRequestDTO requestDTO) {
+        SlotResponseDTO response = slotService.createSlot(requestDTO, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -53,9 +54,19 @@ public class SlotController {
         return ResponseEntity.ok(slotService.getSlotsByVenueAndDate(venueId, date));
     }
 
+    @GetMapping(value = "/venue/{venueId}")
+    public ResponseEntity<List<SlotResponseDTO>> getSlotsByVenue(@PathVariable Long venueId) {
+        return ResponseEntity.ok(slotService.getSlotsByVenue(venueId));
+    }
+
     @DeleteMapping("/{slotId}")
     public ResponseEntity<Void> deleteSlot(@PathVariable Long slotId) {
         slotService.deleteSlot(slotId);
         return ResponseEntity.noContent().build();
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 }

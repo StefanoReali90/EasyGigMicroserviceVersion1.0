@@ -3,10 +3,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { 
-  Landmark, 
-  Phone, 
-  Users, 
-  Settings, 
   Upload, 
   Image as ImageIcon, 
   Save, 
@@ -14,7 +10,7 @@ import {
   ArrowLeft,
   CheckCircle2
 } from 'lucide-react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import * as venueApi from '../api/venues';
 import * as profileApi from '../api/profile';
 import { useAuthStore } from '../store/authStore';
@@ -39,10 +35,8 @@ export default function VenueSettings() {
   const [venue, setVenue] = useState(null);
   const [success, setSuccess] = useState(false);
   
-  // Stati per la ricerca città
   const [citySearch, setCitySearch] = useState("");
   const [cities, setCities] = useState([]);
-  const [isSearchingCities, setIsSearchingCities] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null);
 
   const {
@@ -50,7 +44,7 @@ export default function VenueSettings() {
     handleSubmit,
     setValue,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm({
     resolver: zodResolver(venueUpdateSchema),
   });
@@ -85,18 +79,14 @@ export default function VenueSettings() {
     fetchVenue();
   }, [venueId, user.id, reset]);
 
-  // Autocomplete città
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (citySearch.length > 2 && (!selectedCity || citySearch !== selectedCity.name)) {
-        setIsSearchingCities(true);
         try {
           const data = await profileApi.searchCities(citySearch);
-          setCities(data);
+          setCities(data || []);
         } catch (error) {
           console.error("Errore ricerca città:", error);
-        } finally {
-          setIsSearchingCities(false);
         }
       } else {
         setCities([]);
@@ -136,27 +126,32 @@ export default function VenueSettings() {
     }
   };
 
-  if (isLoading) return <div className="min-h-screen bg-easygig-dark flex items-center justify-center"><Loader2 className="animate-spin text-easygig-accent" size={48} /></div>;
+  if (isLoading) return <div className="min-h-screen bg-easygig-dark flex items-center justify-center"><Loader2 className="animate-spin text-indigo-500" size={48} /></div>;
 
   return (
-    <div className="min-h-screen bg-easygig-dark text-white p-8 font-sans">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-easygig-dark text-slate-200 p-6 lg:p-10 font-sans selection:bg-indigo-600/30 overflow-x-hidden relative">
+      
+      {/* Background Glow */}
+      <div className="absolute top-0 right-1/4 w-[600px] h-[300px] bg-indigo-600/10 blur-[130px] rounded-full pointer-events-none" />
+
+      <div className="max-w-4xl mx-auto relative z-10">
         
         {/* Header */}
-        <div className="flex items-center justify-between mb-12">
-          <div className="flex items-center gap-6">
-            <button onClick={() => navigate(-1)} className="bg-slate-900 p-3 rounded-2xl border border-white/5 hover:bg-white/5 transition-colors">
-              <ArrowLeft size={20} />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate(-1)} className="btn-secondary p-2.5">
+              <ArrowLeft size={18} />
             </button>
             <div>
-              <h1 className="text-3xl font-black uppercase tracking-tight">Impostazioni Locale</h1>
-              <p className="text-slate-400">Modifica i dettagli e le foto di {venue?.name}</p>
+              <span className="badge-indigo mb-1">Impostazioni Struttura</span>
+              <h1 className="text-2xl font-bold text-white tracking-tight">Impostazioni {venue?.name}</h1>
+              <p className="text-slate-400 text-xs mt-0.5">Modifica le informazioni tecniche, l'indirizzo e le immagini del locale</p>
             </div>
           </div>
           {success && (
-            <div className="flex items-center gap-2 text-emerald-400 bg-emerald-400/10 px-4 py-2 rounded-xl animate-fade-in">
-              <CheckCircle2 size={18} />
-              <span className="text-sm font-bold uppercase">Salvato!</span>
+            <div className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 px-3.5 py-1.5 rounded-xl border border-emerald-500/20 text-xs font-bold animate-fade-in">
+              <CheckCircle2 size={16} />
+              <span>Salvato!</span>
             </div>
           )}
         </div>
@@ -164,47 +159,47 @@ export default function VenueSettings() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Form Dati */}
-          <div className="lg:col-span-2 space-y-8">
-            <form onSubmit={handleSubmit(onSubmit)} className="bg-slate-900/50 border border-white/5 p-8 rounded-[2.5rem] space-y-6">
+          <div className="lg:col-span-2 space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="glass-panel p-6 lg:p-8 rounded-2xl space-y-5">
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Nome Locale</label>
-                  <input {...register("name")} className="w-full bg-slate-800/50 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-easygig-accent transition-all" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Nome Locale</label>
+                  <input {...register("name")} className="input-studio w-full" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Telefono</label>
-                  <input {...register("phone")} className="w-full bg-slate-800/50 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-easygig-accent transition-all" />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Telefono</label>
+                  <input {...register("phone")} className="input-studio w-full" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Capienza</label>
-                  <input type="number" {...register("capacity")} className="w-full bg-slate-800/50 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-easygig-accent transition-all" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Capienza (PAX)</label>
+                  <input type="number" {...register("capacity")} className="input-studio w-full" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Tipo Sala</label>
-                  <select {...register("type")} className="w-full bg-slate-800/50 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-easygig-accent transition-all appearance-none">
-                    <option value="STANDING">In Piedi</option>
-                    <option value="SEATED">Seduti</option>
-                    <option value="TABLES">Tavoli</option>
-                    <option value="MIXED">Misto</option>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Tipo Sala</label>
+                  <select {...register("type")} className="input-studio w-full">
+                    <option value="STANDING" className="bg-slate-900">In Piedi</option>
+                    <option value="SEATED" className="bg-slate-900">Seduti</option>
+                    <option value="TABLES" className="bg-slate-900">Tavoli</option>
+                    <option value="MIXED" className="bg-slate-900">Misto</option>
                   </select>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Attrezzatura Tecnica</label>
-                <textarea {...register("equipment")} rows="4" className="w-full bg-slate-800/50 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-easygig-accent transition-all resize-none" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Attrezzatura Tecnica & Scheda Audio</label>
+                <textarea {...register("equipment")} rows="4" className="input-studio w-full resize-none" />
               </div>
 
               {/* Indirizzo */}
-              <div className="pt-4 border-t border-white/5 space-y-6">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-easygig-accent">Indirizzo e Località</h3>
+              <div className="pt-4 border-t border-slate-800 space-y-4">
+                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Indirizzo e Località</h3>
                 
-                <div className="relative space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Città</label>
+                <div className="relative space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Città</label>
                   <input 
                     value={citySearch} 
                     onChange={(e) => {
@@ -212,17 +207,17 @@ export default function VenueSettings() {
                       if (selectedCity) setSelectedCity(null);
                     }}
                     placeholder="Cerca città..." 
-                    className="w-full bg-slate-800/50 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-easygig-accent transition-all" 
+                    className="input-studio w-full" 
                   />
                   {cities.length > 0 && (
-                    <div className="absolute z-50 w-full mt-2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl max-h-44 overflow-y-auto">
                       {cities.map(c => (
                         <button key={c.id} type="button" onClick={() => {
                           setSelectedCity(c);
                           setCitySearch(c.name);
                           setValue("cityId", c.id);
                           setCities([]);
-                        }} className="w-full text-left px-4 py-3 hover:bg-easygig-accent/20 border-b border-white/5 last:border-none">
+                        }} className="w-full text-left px-3.5 py-2 hover:bg-slate-800 text-xs text-slate-300 border-b border-slate-800/50 last:border-none">
                           {c.name}
                         </button>
                       ))}
@@ -230,50 +225,50 @@ export default function VenueSettings() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Via</label>
-                    <input {...register("street")} className="w-full bg-slate-800/50 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-easygig-accent transition-all" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300">Via / Indirizzo</label>
+                    <input {...register("street")} className="input-studio w-full" />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Civico</label>
-                    <input {...register("houseNumber")} className="w-full bg-slate-800/50 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-easygig-accent transition-all" />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300">Civico</label>
+                    <input {...register("houseNumber")} className="input-studio w-full" />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">CAP</label>
-                  <input {...register("zipCode")} className="w-full bg-slate-800/50 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-easygig-accent transition-all" />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">CAP</label>
+                  <input {...register("zipCode")} className="input-studio w-full" />
                 </div>
               </div>
 
-              <button type="submit" disabled={isSubmitting} className="w-full bg-easygig-accent hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-indigo-500/20 transition-all flex items-center justify-center gap-2">
-                {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={20} /> Salva Modifiche</>}
+              <button type="submit" disabled={isSubmitting} className="w-full btn-primary py-3 text-xs">
+                {isSubmitting ? <Loader2 className="animate-spin w-4 h-4" /> : <><Save size={16} /> Salva Modifiche</>}
               </button>
             </form>
           </div>
 
           {/* Gestione Foto */}
           <div className="space-y-6">
-            <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2.5rem] space-y-6">
-              <h3 className="font-bold flex items-center gap-2">
-                <ImageIcon size={18} className="text-easygig-accent" /> Gallery Foto
+            <div className="glass-panel p-6 rounded-2xl space-y-4">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <ImageIcon size={16} className="text-indigo-400" /> Galleria Foto Locale
               </h3>
               
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 {venue?.photos?.map((photo, idx) => (
-                  <div key={idx} className="relative group aspect-video rounded-2xl overflow-hidden border border-white/10">
+                  <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-800">
                     <img src={photo.source} alt="Venue" className="w-full h-full object-cover" />
                     {photo.primary && (
-                      <div className="absolute top-2 left-2 bg-easygig-accent text-[8px] font-bold uppercase px-2 py-1 rounded-full shadow-lg">
+                      <div className="absolute top-2 left-2 bg-indigo-600 text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded shadow">
                         Principale
                       </div>
                     )}
                   </div>
                 ))}
                 
-                <label className="border-2 border-dashed border-white/10 rounded-2xl aspect-video flex flex-col items-center justify-center gap-2 hover:border-easygig-accent/50 hover:bg-easygig-accent/5 transition-all cursor-pointer">
-                  <Upload size={24} className="text-slate-500" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aggiungi Foto</span>
+                <label className="border border-dashed border-slate-800 rounded-xl aspect-video flex flex-col items-center justify-center gap-2 hover:border-indigo-500/50 hover:bg-indigo-600/5 transition-all cursor-pointer">
+                  <Upload size={20} className="text-slate-500" />
+                  <span className="text-xs font-medium text-slate-400">Aggiungi Foto Locale</span>
                   <input type="file" className="hidden" onChange={onPhotoUpload} accept="image/*" />
                 </label>
               </div>

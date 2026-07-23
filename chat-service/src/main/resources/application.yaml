@@ -15,7 +15,9 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "*"
+        spring.json.trusted.packages: "org.spring.*"
+        spring.json.use.type.headers: "true"
+        spring.json.type.mapping: "org.spring.bookingservice.dto.BookingAcceptedEvent:org.spring.chatservice.dto.BookingAcceptedEvent"
 
 logging:
   file:
