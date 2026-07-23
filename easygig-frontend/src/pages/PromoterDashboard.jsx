@@ -9,7 +9,6 @@ import {
   CheckCircle2, 
   Clock, 
   Loader2, 
-  ChevronRight,
   Plus,
   MessageSquare,
   TrendingUp,
@@ -22,6 +21,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../utility/errorHandler';
+import { useToast } from '../context/ToastContext';
 
 import GlobalSearch from '../components/GlobalSearch';
 import * as venueApi from '../api/venues';
@@ -36,6 +36,8 @@ import StatCard from '../components/StatCard';
 export default function PromoterDashboard() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const toast = useToast();
+
   const [venues, setVenues] = useState([]);
   const [myGigs, setMyGigs] = useState([]);
   const [organizations, setOrganizations] = useState([]);
@@ -65,7 +67,7 @@ export default function PromoterDashboard() {
       setOrganizations(userOrgs || []);
     } catch (error) {
       console.error("Errore caricamento dashboard promoter:", error);
-      alert(getErrorMessage(error, "caricamento della dashboard"));
+      toast.error(getErrorMessage(error, "caricamento della dashboard"));
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +90,7 @@ export default function PromoterDashboard() {
       setIsBookingModalOpen(true);
     } catch (error) {
       console.error("Errore caricamento calendario locale:", error);
-      alert(getErrorMessage(error, "caricamento del calendario"));
+      toast.error(getErrorMessage(error, "caricamento del calendario"));
     }
   };
 
@@ -99,7 +101,7 @@ export default function PromoterDashboard() {
       setSelectedDaySlots(slots || []);
     } catch (error) {
       console.error("Errore recupero slot giornata:", error);
-      alert(getErrorMessage(error, "recupero degli slot"));
+      toast.error(getErrorMessage(error, "recupero degli slot"));
     }
   };
 
@@ -124,7 +126,7 @@ export default function PromoterDashboard() {
       setAvailableBands(data || []);
     } catch (error) {
       console.error("Errore ricerca band:", error);
-      alert(getErrorMessage(error, "ricerca della band"));
+      toast.error(getErrorMessage(error, "ricerca della band"));
     }
   };
 
@@ -133,7 +135,7 @@ export default function PromoterDashboard() {
     
     const assignments = selectedSlots.map(s => slotAssignments[s.id]);
     if (assignments.some(a => !a)) {
-      alert("Assegna una band a ogni slot selezionato.");
+      toast.error("Assegna una band a ogni slot selezionato.");
       return;
     }
 
@@ -144,14 +146,14 @@ export default function PromoterDashboard() {
         slotIds: selectedSlots.map(s => s.id),
         bandIds: assignments
       });
-      alert("Richiesta di booking multiplo inviata con successo!");
+      toast.success("Richiesta di booking multiplo inviata con successo!");
       setIsBookingModalOpen(false);
       setSelectedSlots([]);
       setSlotAssignments({});
       fetchInitialData();
     } catch (error) {
       console.error("Errore creazione booking promoter:", error);
-      alert(getErrorMessage(error, "creazione del booking"));
+      toast.error(getErrorMessage(error, "creazione del booking"));
     }
   };
 
@@ -163,12 +165,13 @@ export default function PromoterDashboard() {
   const handleCancelBooking = async () => {
     try {
       await bookingApi.cancelBookingByVenue(user.id, selectedBookingForCancel.bookingId, cancelReason);
+      toast.success("Evento annullato con successo");
       setIsCancelModalOpen(false);
       setCancelReason("");
       fetchInitialData();
     } catch (error) {
       console.error("Errore cancellazione booking promoter:", error);
-      alert(getErrorMessage(error, "cancellazione del booking"));
+      toast.error(getErrorMessage(error, "cancellazione del booking"));
     }
   };
 

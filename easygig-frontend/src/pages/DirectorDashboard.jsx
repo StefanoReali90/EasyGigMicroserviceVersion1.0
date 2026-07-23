@@ -33,7 +33,8 @@ import {
   MapPin,
   Phone,
   Info,
-  Trash2
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import GlobalSearch from '../components/GlobalSearch';
@@ -45,43 +46,63 @@ import * as userApi from '../api/users';
 import * as profileApi from '../api/profile';
 import * as reviewApi from '../api/reviews';
 import NotificationCenter from '../components/NotificationCenter';
-import { AlertTriangle } from 'lucide-react';
 import { getErrorMessage } from '../utility/errorHandler';
+import { useToast } from '../context/ToastContext';
 import UserMenu from '../components/UserMenu';
 import ReviewModal from '../components/ReviewModal';
 import CancelModal from '../components/CancelModal';
+import ConfirmModal from '../components/ConfirmModal';
 import StatCard from '../components/StatCard';
 
 export default function DirectorDashboard() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const toast = useToast();
+
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [venues, setVenues] = useState([]);
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [calendarData, setCalendarData] = useState({});
-  const [venueSlots, setVenueSlots] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [upcomingEvents, setUpcomingEvents] = useState([]);
-  const [pastEvents, setPastEvents] = useState([]);
-  const [requestDetails, setRequestDetails] = useState({});
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [daySlots, setDaySlots] = useState([]);
+  const [bookingRequests, setBookingRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isProcessingAll, setIsProcessingAll] = useState(false);
   
-  // Modal State per la Gestione Slot del Giorno
+  // Modals & Sections
+  const [isAddVenueModalOpen, setIsAddVenueModalOpen] = useState(false);
+  const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
+  const [isDaySlotsModalOpen, setIsDaySlotsModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [selectedDayForInvite, setSelectedDayForInvite] = useState(null);
-  const [selectedSlotForInvite, setSelectedSlotForInvite] = useState(null);
-  const [slotStartTime, setSlotStartTime] = useState("20:00");
-  const [slotEndTime, setSlotEndTime] = useState("22:00");
-  const [bandSearchQuery, setBandSearchQuery] = useState("");
-  const [foundBands, setFoundBands] = useState([]);
-  const [isSearchingBands, setIsSearchingBands] = useState(false);
+
+  // Confirm Accept All Pending Modal State
+  const [isConfirmAcceptAllOpen, setIsConfirmAcceptAllOpen] = useState(false);
 
   // Review Modal State
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [selectedBookingForReview, setSelectedBookingForReview] = useState(null);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const handleReviewSubmit = async ({ rating, comment }) => {
+    setIsSubmittingReview(true);
+    try {
+      await reviewApi.createReview({
+        reviewedId: selectedBookingForReview.artistUserId || selectedBookingForReview.bandId,
+        bookingRequestId: selectedBookingForReview.id,
+        rate: rating,
+        comment,
+        role: 'ARTIST'
+      }, user.id);
+      
+      toast.success('Recensione inviata!');
+      setIsReviewModalOpen(false);
+      setSelectedBookingForReview(null);
+    } catch (error) {
+      console.error('Errore invio recensione:', error);
+      toast.error(getErrorMessage(error, 'invio della recensione'));
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // Cancellation Modal State
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -90,475 +111,275 @@ export default function DirectorDashboard() {
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
 
   const handleCancelBooking = async (reason) => {
+    setIsSubmittingCancel(true);
     try {
-      await bookingApi.cancelBookingByVenue(user.id, selectedBookingForCancel.bookingId, reason);
+      await bookingApi.cancelBookingByVenue(user.id, selectedBookingForCancel.id, reason);
+      toast.success('Prenotazione annullata con successo.');
       setIsCancelModalOpen(false);
       setCancelReason('');
       setSelectedBookingForCancel(null);
-      refreshData();
+      fetchBookingRequests(selectedVenue.id);
     } catch (error) {
-      console.error('Errore cancellazione booking direttore:', error);
-      alert(getErrorMessage(error, 'cancellazione del booking'));
+      console.error('Errore cancellazione booking:', error);
+      toast.error(getErrorMessage(error, 'cancellazione del booking'));
     } finally {
       setIsSubmittingCancel(false);
     }
   };
 
-  // La logica isLateCancellation è ora gestita internamente da CancelModal
-
-  // Bulk Slot Modal State
-  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
-  const [bulkConfig, setBulkConfig] = useState({
-    startDate: format(new Date(), 'yyyy-MM-dd'),
-    endDate: format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
-    days: [false, false, false, false, false, true, true], // Fri, Sat by default
-    startTime: "21:00"
-  });
-
-  // Add Venue Modal State
-  const [isAddVenueModalOpen, setIsAddVenueModalOpen] = useState(false);
-  const [newVenueData, setNewVenueData] = useState({
-    name: "",
-    phone: "",
-    capacity: "",
-    type: "STANDING",
-    equipment: "",
-    street: "",
-    houseNumber: "",
-    zipCode: "",
-    cityId: ""
-  });
-  const [citySearch, setCitySearch] = useState("");
+  // Form States
+  const [newVenue, setNewVenue] = useState({ name: '', address: '', description: '', phone: '', email: '', venueType: 'BAR_PUBS', techSpec: '', cityId: '' });
   const [cities, setCities] = useState([]);
-  const [isSearchingCities, setIsSearchingCities] = useState(false);
-  const [selectedCity, setSelectedCity] = useState(null);
+  const [citySearch, setCitySearch] = useState("");
 
-  const handleAddVenue = async (e) => {
-    e.preventDefault();
-    try {
-      await profileApi.createVenueProfile({
-        ...newVenueData,
-        directorId: user.id
-      });
-      setIsAddVenueModalOpen(false);
-      setNewVenueData({
-        name: "", phone: "", capacity: "", type: "STANDING", equipment: "",
-        street: "", houseNumber: "", zipCode: "", cityId: ""
-      });
-      setCitySearch("");
-      setSelectedCity(null);
-      
-      // Refresh venues list
-      const data = await venueApi.getVenuesByDirector(user.id);
-      setVenues(data);
-      if (data.length > 0 && !selectedVenue) setSelectedVenue(data[0]);
-      
-      alert("Locale aggiunto con successo!");
-    } catch (error) {
-      console.error("Errore aggiunta locale:", error);
-      alert(getErrorMessage(error, "aggiunta del locale"));
-    }
-  };
+  const [newSlot, setNewSlot] = useState({ date: format(new Date(), 'yyyy-MM-dd'), startTime: '21:00', endTime: '23:30' });
+  const [bandSearchQuery, setBandSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  
+  // Slot Multipli per una giornata
+  const [slotStartTime, setSlotStartTime] = useState("21:00");
+  const [slotEndTime, setSlotEndTime] = useState("22:30");
+  const [isAddingSlot, setIsAddingSlot] = useState(false);
 
-  // Cerca città per la nuova venue
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (citySearch.length > 2 && !selectedCity) {
-        setIsSearchingCities(true);
-        try {
-          const data = await profileApi.searchCities(citySearch);
-          setCities(data);
-        } catch (error) {
-          console.error("Errore ricerca città:", error);
-        } finally {
-          setIsSearchingCities(false);
-        }
-      } else {
-        setCities([]);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [citySearch, selectedCity]);
+    if (user?.id) {
+      fetchVenues();
+    }
+  }, [user]);
 
+  useEffect(() => {
+    if (selectedVenue) {
+      fetchCalendar(selectedVenue.id, currentMonth);
+      fetchBookingRequests(selectedVenue.id);
+    }
+  }, [selectedVenue, currentMonth]);
 
-  const handleBulkCreate = async () => {
-    if (!selectedVenue) return;
+  const fetchVenues = async () => {
     setIsLoading(true);
     try {
-      const start = new Date(bulkConfig.startDate);
-      const end = new Date(bulkConfig.endDate);
-      let current = new Date(start);
-      
-      const promises = [];
-      while (current <= end) {
-        const dayOfWeek = (current.getDay() + 6) % 7; // Map 0 (Sun) to 6, 1 (Mon) to 0
-        // Wait, standard getDay() is 0=Sun, 1=Mon... 5=Fri, 6=Sat.
-        // My array is [Mon, Tue, Wed, Thu, Fri, Sat, Sun]? Let's fix.
-        // Let's use 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-        
-        const daysIndices = [1, 2, 3, 4, 5, 6, 0]; // Mon to Sun
-        const isSelected = bulkConfig.days[daysIndices.indexOf(current.getDay())];
-        
-        if (isSelected) {
-          const slotStart = new Date(current);
-          const [h, m] = bulkConfig.startTime.split(':');
-          slotStart.setHours(parseInt(h), parseInt(m), 0);
-          
-          const slotEnd = new Date(slotStart);
-          slotEnd.setHours(slotEnd.getHours() + 3); // Default 3 hours
-
-          promises.push(slotApi.createSlot({
-            venueId: selectedVenue.id,
-            start: format(slotStart, "yyyy-MM-dd'T'HH:mm:ss"),
-            end: format(slotEnd, "yyyy-MM-dd'T'HH:mm:ss")
-          }));
-        }
-        current = addDays(current, 1);
+      const data = await venueApi.getVenuesByDirector(user.id);
+      setVenues(data);
+      if (data.length > 0) {
+        setSelectedVenue(data[0]);
       }
-      
-      const results = await Promise.allSettled(promises);
-      const successCount = results.filter(r => r.status === 'fulfilled').length;
-      const failCount = results.filter(r => r.status === 'rejected').length;
-
-      let msg = `${successCount} slot creati con successo.`;
-      if (failCount > 0) {
-        msg += `\n${failCount} slot saltati (probabilmente già esistenti in quelle date).`;
-      }
-      
-      alert(msg);
-      setIsBulkModalOpen(false);
-      refreshData();
     } catch (error) {
-      console.error("Errore creazione massiva:", error);
-      alert("Si è verificato un errore critico durante la creazione massiva.");
+      console.error("Errore recupero locali:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 1. Carica i locali gestiti dal direttore
-  useEffect(() => {
-    const fetchVenues = async () => {
+  const handleCitySearch = async (val) => {
+    setCitySearch(val);
+    if (val.length > 2) {
       try {
-        const data = await venueApi.getVenuesByDirector(user.id);
-        setVenues(data);
-        if (data.length > 0) setSelectedVenue(data[0]);
-      } catch (error) {
-        console.error("Errore caricamento locali:", error);
-      } finally {
-        setIsLoading(false);
+        const results = await profileApi.searchCities(val);
+        setCities(results);
+      } catch (err) {
+        console.error("Errore ricerca città:", err);
       }
-    };
-    if (user) {
-      fetchVenues();
-    } else {
-      setIsLoading(false);
     }
-  }, [user]);
-
-  // 2. Carica la disponibilità e le richieste quando cambia mese o locale
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!selectedVenue) return;
-      try {
-        const month = currentMonth.getMonth() + 1;
-        const year = currentMonth.getFullYear();
-        
-        const [calData, reqData, allBookings, slotsData] = await Promise.all([
-          slotApi.getCalendar(selectedVenue.id, month, year),
-          bookingApi.getVenueRequests(selectedVenue.id),
-          bookingApi.getVenueRequests(selectedVenue.id, 'ACCEPTED'),
-          slotApi.getSlotsByVenue(selectedVenue.id).catch(() => [])
-        ]);
-        
-        setCalendarData(calData.calendarColors || {});
-        setRequests(reqData);
-        setVenueSlots(slotsData || []);
-        
-        const now = new Date();
-        const upcoming = allBookings.filter(b => new Date(b.slotStart || b.createdAt) >= now);
-        const past = allBookings.filter(b => new Date(b.slotStart || b.createdAt) < now);
-        
-        setUpcomingEvents(upcoming);
-        setPastEvents(past);
-
-        const details = {};
-        const allRelevantRequests = [...reqData, ...past];
-        await Promise.all(allRelevantRequests.map(async (req) => {
-          try {
-            // Fetch User/Artist
-            const artist = await userApi.getUserById(req.userId);
-            
-            // Fetch Band if applicable
-            let band = null;
-            if (req.bandId) {
-              band = await profileApi.getBandById(req.bandId).catch(() => null);
-            }
-            
-            details[req.bookingId] = { artist, band };
-          } catch (e) {
-            console.error("Errore fetch dettagli richiesta:", e);
-          }
-        }));
-        setRequestDetails(details);
-
-      } catch (error) {
-        console.error("Errore caricamento dati dashboard:", error);
-      }
-    };
-    fetchData();
-  }, [selectedVenue, currentMonth]);
-
-  // Ricerca band
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (bandSearchQuery.length > 2) {
-        setIsSearchingBands(true);
-        try {
-          const data = await profileApi.searchBands({ name: bandSearchQuery });
-          setFoundBands(data);
-        } catch (error) {
-          console.error("Errore ricerca band:", error);
-        } finally {
-          setIsSearchingBands(false);
-        }
-      } else {
-        setFoundBands([]);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [bandSearchQuery]);
-
-  const handleToggleSlot = (day) => {
-    if (!selectedVenue) return;
-    setSelectedDayForInvite(day);
-    setSelectedSlotForInvite(null);
-    setIsInviteModalOpen(true);
   };
 
-  const handleAddSlotForDay = async () => {
-    if (!selectedDayForInvite || !selectedVenue) return;
+  const handleCreateVenue = async () => {
+    if (!newVenue.name || !newVenue.cityId) {
+      toast.error("Compila i campi obbligatori Nome e Città.");
+      return;
+    }
     try {
-      const [startH, startM] = slotStartTime.split(':');
-      const [endH, endM] = slotEndTime.split(':');
-
-      const start = new Date(selectedDayForInvite);
-      start.setHours(parseInt(startH || '20'), parseInt(startM || '00'), 0, 0);
-
-      const end = new Date(selectedDayForInvite);
-      end.setHours(parseInt(endH || '22'), parseInt(endM || '00'), 0, 0);
-
-      if (end <= start) {
-        alert("L'ora di fine dello slot deve essere successiva all'ora di inizio.");
-        return;
-      }
-
-      const dateStr = format(selectedDayForInvite, 'yyyy-MM-dd');
-      const daySlots = venueSlots.filter(s => s.start && s.start.startsWith(dateStr));
-      const hasOverlap = daySlots.some(s => {
-        const sStart = new Date(s.start);
-        const sEnd = new Date(s.end);
-        return start < sEnd && end > sStart;
+      const created = await venueApi.createVenue({
+        ...newVenue,
+        directorId: user.id,
+        address: { street: newVenue.address, cityId: parseInt(newVenue.cityId) }
       });
+      setVenues([...venues, created]);
+      setSelectedVenue(created);
+      setIsAddVenueModalOpen(false);
+      setNewVenue({ name: '', address: '', description: '', phone: '', email: '', venueType: 'BAR_PUBS', techSpec: '', cityId: '' });
+      toast.success("Locale aggiunto con successo!");
+    } catch (error) {
+      console.error("Errore creazione locale:", error);
+      toast.error(getErrorMessage(error, "aggiunta del locale"));
+    }
+  };
 
-      if (hasOverlap) {
-        alert("Esiste già uno slot che si sovrappone a questo orario per il giorno selezionato!");
-        return;
+  const fetchCalendar = async (venueId, date) => {
+    try {
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      const data = await slotApi.getCalendar(venueId, month, year);
+      setCalendarData(data.calendarColors || {});
+    } catch (error) {
+      console.error("Errore recupero calendario:", error);
+    }
+  };
+
+  const fetchBookingRequests = async (venueId) => {
+    try {
+      const data = await bookingApi.getBookingRequestsForVenue(venueId);
+      setBookingRequests(data);
+    } catch (error) {
+      console.error("Errore recupero richieste:", error);
+    }
+  };
+
+  const handleDateClick = async (day) => {
+    setSelectedDate(day);
+    if (selectedVenue) {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      try {
+        const slots = await slotApi.getSlotsByVenueAndDate(selectedVenue.id, dateStr);
+        setDaySlots(slots);
+        setIsDaySlotsModalOpen(true);
+      } catch (error) {
+        console.error("Errore recupero slot del giorno:", error);
       }
+    }
+  };
 
+  const handleCreateSlotSingle = async () => {
+    if (!selectedVenue || !selectedDate) return;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const startIso = `${dateStr}T${slotStartTime}:00`;
+    const endIso = `${dateStr}T${slotEndTime}:00`;
+
+    if (slotStartTime >= slotEndTime) {
+      toast.error("L'ora di fine dello slot deve essere successiva all'ora di inizio.");
+      return;
+    }
+
+    const hasOverlap = daySlots.some(s => {
+      const sStart = format(new Date(s.start), 'HH:mm');
+      const sEnd = format(new Date(s.end), 'HH:mm');
+      return (slotStartTime < sEnd && slotEndTime > sStart);
+    });
+
+    if (hasOverlap) {
+      toast.error("Esiste già uno slot che si sovrappone a questo orario per il giorno selezionato!");
+      return;
+    }
+
+    setIsAddingSlot(true);
+    try {
       await slotApi.createSlot({
         venueId: selectedVenue.id,
-        start: format(start, "yyyy-MM-dd'T'HH:mm:ss"),
-        end: format(end, "yyyy-MM-dd'T'HH:mm:ss")
+        start: startIso,
+        end: endIso
       });
-
-      refreshData();
+      const updatedSlots = await slotApi.getSlotsByVenueAndDate(selectedVenue.id, dateStr);
+      setDaySlots(updatedSlots);
+      fetchCalendar(selectedVenue.id, currentMonth);
+      toast.success("Slot creato con successo!");
     } catch (error) {
       console.error("Errore creazione slot:", error);
-      alert(getErrorMessage(error, "creazione dello slot"));
+      toast.error(getErrorMessage(error, "creazione dello slot"));
+    } finally {
+      setIsAddingSlot(false);
     }
   };
 
   const handleDeleteSlot = async (slotId) => {
     try {
       await slotApi.deleteSlot(slotId);
-      refreshData();
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const updatedSlots = await slotApi.getSlotsByVenueAndDate(selectedVenue.id, dateStr);
+      setDaySlots(updatedSlots);
+      fetchCalendar(selectedVenue.id, currentMonth);
+      toast.success("Slot eliminato.");
     } catch (error) {
       console.error("Errore eliminazione slot:", error);
-      alert(getErrorMessage(error, "eliminazione dello slot"));
+      toast.error(getErrorMessage(error, "eliminazione dello slot"));
     }
   };
 
-  const inviteBandToSlot = async (band, slotId) => {
+  const handleInviteBand = async (band) => {
+    if (!selectedDate || !selectedVenue) return;
     try {
-      const targetUserId = band.userId || band.id;
-      await bookingApi.inviteArtist(selectedVenue.id, targetUserId, slotId);
-      alert(`Invito inviato con successo alla band ${band.name}!`);
-      setSelectedSlotForInvite(null);
-      setBandSearchQuery('');
-      refreshData();
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      await bookingApi.sendInviteToBand({
+        venueId: selectedVenue.id,
+        bandId: band.id,
+        date: dateStr
+      });
+      toast.success(`Invito inviato con successo alla band ${band.name}!`);
+      setIsInviteModalOpen(false);
+      fetchBookingRequests(selectedVenue.id);
     } catch (error) {
       console.error("Errore invio invito:", error);
-      alert(getErrorMessage(error, "invio dell'invito"));
+      toast.error(getErrorMessage(error, "invio dell'invito"));
     }
   };
 
-  const handleRequest = async (requestId, action) => {
+  const handleBookingAction = async (requestId, action) => {
     try {
-      if (action === 'accept') {
-        await bookingApi.acceptRequest(requestId, user.id);
+      if (action === 'ACCEPT') {
+        await bookingApi.acceptBookingRequest(requestId);
+        toast.success("Richiesta accettata con successo!");
       } else {
-        await bookingApi.rejectRequest(requestId, user.id);
+        await bookingApi.rejectBookingRequest(requestId);
+        toast.info("Richiesta rifiutata.");
       }
-      refreshData();
+      fetchBookingRequests(selectedVenue.id);
+      fetchCalendar(selectedVenue.id, currentMonth);
     } catch (error) {
-      console.error("Errore gestione richiesta:", error);
-      alert(getErrorMessage(error, "gestione della richiesta"));
+      console.error(`Errore durante ${action}:`, error);
+      toast.error(getErrorMessage(error, "gestione della richiesta"));
     }
   };
 
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-
-  const handleReviewSubmit = async ({ rating, comment }) => {
-    setIsSubmittingReview(true);
+  const handleAcceptAllPending = async () => {
     try {
-      await reviewApi.createReview({
-        reviewedId: selectedBookingForReview.userId,
-        bookingRequestId: selectedBookingForReview.bookingId,
-        rate: rating,
-        comment,
-        role: 'ARTIST'
-      }, user.id);
-      
-      alert('Recensione inviata!');
-      setIsReviewModalOpen(false);
-      setSelectedBookingForReview(null);
-      refreshData();
-    } catch (error) {
-      console.error('Errore invio recensione:', error);
-      alert(getErrorMessage(error, 'invio della recensione'));
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  };
-
-  const handleAcceptAll = async () => {
-    if (requests.length === 0) return;
-    if (!window.confirm("Sei sicuro di voler accettare TUTTE le richieste pendenti?")) return;
-    
-    setIsProcessingAll(true);
-    try {
-      for (const req of requests) {
-        try {
-          await bookingApi.acceptRequest(req.bookingId, user.id);
-        } catch (e) {
-          console.error("Errore accettazione singola:", e);
-        }
+      const pending = bookingRequests.filter(r => r.status === 'PENDING');
+      for (const req of pending) {
+        await bookingApi.acceptBookingRequest(req.id);
       }
-      refreshData();
+      toast.success("Tutte le richieste pendenti sono state accettate!");
+      setIsConfirmAcceptAllOpen(false);
+      fetchBookingRequests(selectedVenue.id);
+      fetchCalendar(selectedVenue.id, currentMonth);
     } catch (error) {
-      console.error("Errore accetta tutto:", error);
-    } finally {
-      setIsProcessingAll(false);
+      console.error("Errore accettazione massiva:", error);
+      toast.error(getErrorMessage(error, "accettazione massiva"));
     }
   };
 
-  const refreshData = async () => {
-    if (!selectedVenue) return;
-    const month = currentMonth.getMonth() + 1;
-    const year = currentMonth.getFullYear();
-    const [calData, reqData, allBookings, slotsData] = await Promise.all([
-      slotApi.getCalendar(selectedVenue.id, month, year),
-      bookingApi.getVenueRequests(selectedVenue.id),
-      bookingApi.getVenueRequests(selectedVenue.id, 'ACCEPTED'),
-      slotApi.getSlotsByVenue(selectedVenue.id).catch(() => [])
-    ]);
-    setCalendarData(calData.calendarColors || {});
-    setRequests(reqData);
-    setVenueSlots(slotsData || []);
-    const now = new Date();
-    setUpcomingEvents(allBookings.filter(b => new Date(b.slotStart || b.createdAt) >= now));
-    setPastEvents(allBookings.filter(b => new Date(b.slotStart || b.createdAt) < now));
+  // Search Bands API
+  const handleBandSearch = async (val) => {
+    setBandSearchQuery(val);
+    if (val.length > 1) {
+      try {
+        const results = await profileApi.searchBands({ name: val });
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Errore ricerca band:", error);
+      }
+    }
   };
 
-  const renderHeader = () => {
-    return (
-      <>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Landmark className="text-easygig-accent" size={28} />
-              <h2 className="text-3xl font-black tracking-tight uppercase">Gestione Locale</h2>
-            </div>
-            {selectedVenue ? (
-              <div className="flex items-center gap-2">
-                <p className="text-slate-400 font-medium">Stai gestendo:</p>
-                <select 
-                  className="bg-white/5 border-none text-easygig-accent font-black focus:ring-0 cursor-pointer"
-                  value={selectedVenue.id}
-                  onChange={(e) => setSelectedVenue(venues.find(v => v.id === parseInt(e.target.value)))}
-                >
-                  {venues.map(v => (
-                    <option key={v.id} value={v.id} className="bg-slate-900">{v.name}</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <p className="text-slate-400 text-sm italic">Nessun locale selezionato</p>
-            )}
-            <button 
-              onClick={() => setIsAddVenueModalOpen(true)}
-              className="mt-2 flex items-center gap-1.5 text-easygig-accent hover:text-indigo-400 text-[10px] font-black uppercase tracking-widest transition-colors"
-            >
-              <Plus size={12} /> Aggiungi Locale
-            </button>
-          </div>
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsBulkModalOpen(true)}
-              className="hidden md:flex items-center gap-2 bg-easygig-accent/10 hover:bg-easygig-accent text-easygig-accent hover:text-white px-5 py-2.5 rounded-2xl border border-easygig-accent/20 transition-all font-bold text-xs uppercase tracking-widest"
-            >
-              <Plus size={16} /> Apri Slot Multipli
-            </button>
-            <div className="flex gap-2">
-              <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 hover:bg-white/5 rounded-full transition-colors">
-                <ChevronLeft />
-              </button>
-              <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 hover:bg-white/5 rounded-full transition-colors">
-                <ChevronRight />
-              </button>
-            </div>
-          </div>
-        </div>
+  // Calendar Helpers
+  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
-        {/* Warning se non ci sono locali */}
-        {venues.length === 0 && !isLoading && (
-          <div className="bg-amber-500/10 border border-amber-500/20 p-8 rounded-[3rem] mb-12 flex flex-col items-center text-center gap-6 animate-pulse">
-             <div className="p-4 bg-amber-500/20 rounded-3xl text-amber-500">
-                <Landmark size={48} />
-             </div>
-             <div className="max-w-md">
-                <h3 className="text-xl font-black uppercase tracking-tight text-amber-500 mb-2">Nessun locale associato</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  Sembra che tu non abbia ancora creato un locale o che l'associazione non sia andata a buon fine. 
-                  Senza un locale non puoi gestire slot o ricevere prenotazioni.
-                </p>
-             </div>
-             <Link to="/profile/edit" className="bg-amber-500 text-slate-900 font-black px-8 py-4 rounded-2xl uppercase tracking-widest text-xs hover:bg-amber-400 transition-all">
-                Configura Profilo
-             </Link>
-          </div>
-        )}
-      </>
-    );
-  };
+  const renderHeader = () => (
+    <div className="flex items-center justify-between mb-6 bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+      <button onClick={prevMonth} className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-300">
+        <ChevronLeft size={20} />
+      </button>
+      <h2 className="text-base font-bold text-white tracking-tight uppercase">
+        {format(currentMonth, 'MMMM yyyy', { locale: it })}
+      </h2>
+      <button onClick={nextMonth} className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-300">
+        <ChevronRight size={20} />
+      </button>
+    </div>
+  );
 
   const renderDays = () => {
-    const days = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+    const days = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
     return (
-      <div className="grid grid-cols-7 mb-4">
-        {days.map((day, index) => (
-          <div key={index} className="text-center text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <div className="grid grid-cols-7 gap-2 mb-2 text-center">
+        {days.map((day, i) => (
+          <div key={i} className="text-[11px] font-bold text-slate-400 uppercase tracking-wider py-1">
             {day}
           </div>
         ))}
@@ -569,91 +390,54 @@ export default function DirectorDashboard() {
   const renderCells = () => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart);
-    const endDate = endOfWeek(monthEnd);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
     const rows = [];
+    let days = [];
     let day = startDate;
 
     while (day <= endDate) {
-      const weekDays = [];
       for (let i = 0; i < 7; i++) {
-        const cellDay = new Date(day);
-        const formattedDate = format(cellDay, 'yyyy-MM-dd');
-        const daySlots = venueSlots.filter(s => s.start && s.start.startsWith(formattedDate));
-        const status = calendarData[formattedDate];
-        const isSelected = isSameDay(cellDay, new Date());
-        const isCurrentMonth = isSameMonth(cellDay, monthStart);
+        const formattedDate = format(day, 'yyyy-MM-dd');
+        const isCurrentMonth = isSameMonth(day, monthStart);
+        const colorState = calendarData[formattedDate];
 
-        const hasAvailable = daySlots.some(s => s.state === 'AVAILABLE');
-        const hasPending = daySlots.some(s => s.state === 'PENDING');
-        const hasBooked = daySlots.some(s => s.state === 'BOOKED');
+        let stateClasses = "bg-slate-950/60 text-slate-400 hover:border-slate-700 border-slate-800/80";
+        if (colorState === 'green') {
+          stateClasses = "bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:border-emerald-500/50 shadow-sm shadow-emerald-500/5";
+        } else if (colorState === 'yellow') {
+          stateClasses = "bg-amber-500/10 text-amber-300 border-amber-500/30 hover:border-amber-500/50 shadow-sm shadow-amber-500/5";
+        } else if (colorState === 'red') {
+          stateClasses = "bg-rose-500/10 text-rose-300 border-rose-500/30 hover:border-rose-500/50 shadow-sm shadow-rose-500/5";
+        }
 
-        weekDays.push(
+        const cloneDay = day;
+        days.push(
           <div
-            key={cellDay.getTime()}
-            onClick={() => {
-              if (isCurrentMonth) {
-                handleToggleSlot(cellDay);
-              }
-            }}
-            className={`relative h-32 border border-slate-800/80 p-2 transition-all cursor-pointer group flex flex-col justify-between
-              ${!isCurrentMonth ? 'opacity-20 cursor-default pointer-events-none' : 'hover:bg-slate-800/40'}
-              ${daySlots.length > 0 ? (hasAvailable ? 'bg-emerald-500/5' : hasPending ? 'bg-amber-500/5' : 'bg-rose-500/5') : ''}
-            `}
+            key={day.toString()}
+            onClick={() => isCurrentMonth && handleDateClick(cloneDay)}
+            className={`min-h-[75px] sm:min-h-[90px] p-2 rounded-xl border flex flex-col justify-between transition-all cursor-pointer relative group ${
+              !isCurrentMonth ? "opacity-25 border-transparent pointer-events-none" : stateClasses
+            }`}
           >
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-semibold ${isSelected ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full shadow-sm' : 'text-slate-300'}`}>
-                {format(cellDay, 'd')}
+            <div className="flex justify-between items-center">
+              <span className={`text-xs font-bold ${isSameDay(day, new Date()) ? 'w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center' : ''}`}>
+                {format(day, 'd')}
               </span>
-              
-              {daySlots.length > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  {daySlots.length} {daySlots.length === 1 ? 'Slot' : 'Slot'}
-                </span>
+              {colorState && (
+                <span className={`w-2 h-2 rounded-full ${
+                  colorState === 'green' ? 'bg-emerald-400' :
+                  colorState === 'yellow' ? 'bg-amber-400' : 'bg-rose-400'
+                }`} />
               )}
             </div>
-            
-            {daySlots.length > 0 ? (
-              <div className="space-y-1 my-1">
-                {daySlots.slice(0, 2).map((slot) => {
-                  const startTime = format(new Date(slot.start), 'HH:mm');
-                  const endTime = format(new Date(slot.end), 'HH:mm');
-                  return (
-                    <div 
-                      key={slot.id} 
-                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center justify-between ${
-                        slot.state === 'AVAILABLE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                        slot.state === 'PENDING' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                        'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      }`}
-                    >
-                      <span>{startTime} - {endTime}</span>
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        slot.state === 'AVAILABLE' ? 'bg-emerald-400' :
-                        slot.state === 'PENDING' ? 'bg-amber-400' : 'bg-rose-400'
-                      }`} />
-                    </div>
-                  );
-                })}
-                {daySlots.length > 2 && (
-                  <p className="text-[9px] text-slate-500 font-medium text-center">+{daySlots.length - 2} altri slot</p>
-                )}
-              </div>
-            ) : (
-              status && (
-                <div className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
-                  status === 'green' ? 'text-emerald-400 bg-emerald-400/10' : status === 'yellow' ? 'text-amber-400 bg-amber-400/10' : 'text-rose-400 bg-rose-400/10'
-                }`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${status === 'green' ? 'bg-emerald-400' : status === 'yellow' ? 'bg-amber-400' : 'bg-rose-400'}`} />
-                  {status === 'green' ? 'Libero' : status === 'yellow' ? 'In Attesa' : 'Occupato'}
-                </div>
-              )
-            )}
 
-            {isCurrentMonth && daySlots.length === 0 && !status && (
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Plus className="text-indigo-400" size={20} />
+            {colorState && (
+              <div className="mt-1">
+                <span className="text-[9px] font-bold uppercase tracking-wider block truncate">
+                  {colorState === 'green' ? 'Slot Libero' : colorState === 'yellow' ? 'Richiesta' : 'Occupato'}
+                </span>
               </div>
             )}
           </div>
@@ -661,710 +445,510 @@ export default function DirectorDashboard() {
         day = addDays(day, 1);
       }
       rows.push(
-        <div className="grid grid-cols-7" key={day.getTime()}>
-          {weekDays}
+        <div className="grid grid-cols-7 gap-2" key={day.toString()}>
+          {days}
         </div>
       );
+      days = [];
     }
-    return <div className="border border-slate-800 rounded-2xl overflow-hidden shadow-studio">{rows}</div>;
+    return <div className="space-y-2">{rows}</div>;
   };
 
-  if (isLoading) return <div className="min-h-screen bg-easygig-dark flex items-center justify-center"><Loader2 className="animate-spin text-easygig-accent" size={48} /></div>;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-easygig-dark flex items-center justify-center">
+        <Loader2 className="animate-spin text-indigo-500" size={48} />
+      </div>
+    );
+  }
+
+  const pendingRequests = bookingRequests.filter(r => r.status === 'PENDING');
+  const acceptedBookings = bookingRequests.filter(r => r.status === 'ACCEPTED');
 
   return (
-    <div className="min-h-screen bg-easygig-dark text-white p-8 font-sans">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Top Bar */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-          <div>
-            <h1 className="text-4xl font-black tracking-tight uppercase">Dashboard Direttore</h1>
-            <p className="text-slate-400 mt-1">Bentornato, {user?.firstName} {user?.lastName}</p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate('/messages')}
-              className="bg-white/5 hover:bg-white/10 p-4 rounded-3xl border border-white/5 flex items-center gap-3 transition-all group"
-            >
-              <MessageSquare className="text-easygig-accent group-hover:scale-110 transition-transform" size={20} />
-              <span className="font-bold text-sm hidden md:inline">Messaggi</span>
-            </button>
+    <div className="min-h-screen bg-easygig-dark text-slate-200 p-6 lg:p-10 font-sans selection:bg-indigo-600/30 overflow-x-hidden relative">
+      
+      {/* Background illumination */}
+      <div className="absolute top-0 right-1/3 w-[600px] h-[300px] bg-indigo-600/10 blur-[130px] rounded-full pointer-events-none" />
 
+      <div className="max-w-7xl mx-auto relative z-10">
+        
+        {/* Header Dashboard */}
+        <header className="glass-panel p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
+                <Landmark size={18} />
+              </div>
+              <span className="badge-indigo">Direttore Artistico</span>
+            </div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Studio di Direzione Artistica</h1>
+            <p className="text-slate-400 text-xs mt-0.5">Gestisci la programmazione live, gli slot e le candidature per il tuo locale</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
             <NotificationCenter userId={user?.id} />
             <UserMenu />
+            
+            <button 
+              onClick={() => navigate('/messages')} 
+              className="btn-primary py-2.5 px-4 text-xs"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Messaggi</span>
+            </button>
 
-
-            <div className="flex items-center gap-4 bg-slate-900 border border-white/10 p-2 rounded-2xl">
-              <div className="flex items-center gap-3 px-4">
-                <Landmark className="text-easygig-accent" size={20} />
-                <select 
-                  value={selectedVenue?.id} 
-                  onChange={(e) => setSelectedVenue(venues.find(v => v.id == e.target.value))}
-                  className="bg-transparent border-none outline-none font-bold text-sm cursor-pointer pr-8"
-                >
-                  {venues.map(v => <option key={v.id} value={v.id} className="bg-slate-900">{v.name}</option>)}
-                </select>
-              </div>
-
-              <Link 
-                to={`/venue/settings/${selectedVenue?.id}`}
-                className="bg-white/5 p-2 rounded-xl hover:bg-white/10 transition-colors"
-                title="Impostazioni Locale"
-              >
-                <Settings size={20} />
-              </Link>
-            </div>
+            <button 
+              onClick={() => setIsAddVenueModalOpen(true)}
+              className="btn-secondary py-2.5 px-4 text-xs"
+            >
+              <Plus size={16} />
+              <span>Nuovo Locale</span>
+            </button>
           </div>
         </header>
 
-        <div className="mb-12">
+        <div className="mb-8">
           <GlobalSearch />
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <StatCard 
-            label="Eventi Conclusi" 
-            value={pastEvents.length} 
-            icon={<CheckCircle2 className="text-emerald-500" />} 
-            trend="+12% questo mese"
-          />
-          <StatCard 
-            label="Richieste Pendenti" 
-            value={requests.length} 
-            icon={<Clock className="text-amber-500" />} 
-            trend="Risposta media: 2h"
-          />
-          <StatCard 
-            label="Occupazione" 
-            value={`${Math.round((Object.values(calendarData).filter(v => v === 'red').length / 30) * 100)}%`} 
-            icon={<Landmark className="text-indigo-500" />} 
-            trend="Basato sul mese corrente"
-          />
-          <StatCard 
-            label="Strike" 
-            value={`${user?.strikes || 0}/5`} 
-            icon={<AlertTriangle className={user?.strikes > 0 ? "text-rose-500" : "text-slate-500"} />} 
-            trend={user?.strikes >= 4 ? "Rischio Ban" : "Affidabilità Locale"}
-          />
+        {/* Selector Locale & Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+          
+          <div className="lg:col-span-4 glass-panel p-6 rounded-2xl flex flex-col justify-between">
+            <div>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Locale Selezionato</span>
+              {venues.length > 0 ? (
+                <div className="space-y-3">
+                  <select 
+                    value={selectedVenue?.id || ''} 
+                    onChange={(e) => setSelectedVenue(venues.find(v => v.id === parseInt(e.target.value)))}
+                    className="input-studio font-bold text-sm text-white"
+                  >
+                    {venues.map(v => (
+                      <option key={v.id} value={v.id} className="bg-slate-900 text-white">{v.name}</option>
+                    ))}
+                  </select>
+                  {selectedVenue && (
+                    <div className="p-4 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-white">{selectedVenue.name}</span>
+                        <span className="badge-indigo">{selectedVenue.venueType || 'Bar / Pub'}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                        <MapPin size={13} className="text-indigo-400 shrink-0" />
+                        <span className="truncate">{selectedVenue.address?.street || 'Indirizzo non impostato'}</span>
+                      </p>
+                      <div className="pt-2 border-t border-slate-800 flex gap-2">
+                        <Link 
+                          to={`/venue/settings/${selectedVenue.id}`}
+                          className="btn-secondary py-1.5 px-3 text-[11px] flex-1 text-center"
+                        >
+                          <Settings size={13} />
+                          <span>Impostazioni Technical Spec</span>
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-slate-400 text-xs italic">
+                  Nessun locale associato al tuo profilo. Crea il tuo primo locale per cominciare!
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatCard label="Live In Programma" value={acceptedBookings.length} color="from-emerald-500/20 to-emerald-500/5" text="text-emerald-400" />
+            <StatCard label="Candidature Pendenti" value={pendingRequests.length} color="from-amber-500/20 to-amber-500/5" text="text-amber-400" />
+            <StatCard label="Rating Locale" value={selectedVenue?.rating ?? '5.0'} color="from-indigo-500/20 to-indigo-500/5" text="text-indigo-400" />
+          </div>
+
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Calendario Principale */}
-          <div className="lg:col-span-3">
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left Column: Calendar */}
+          <div className="lg:col-span-7 glass-panel p-6 lg:p-8 rounded-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                  <CalendarIcon className="text-indigo-400" size={20} />
+                  Programmazione Calendario
+                </h3>
+                <p className="text-slate-400 text-xs mt-0.5">Clicca su un giorno per gestire gli slot e invitare le band</p>
+              </div>
+            </div>
+
             {renderHeader()}
             {renderDays()}
             {renderCells()}
-
-            {/* Galleria Locale */}
-            <div className="mt-12">
-              {selectedVenue && <PhotoGallery type="VENUE" id={selectedVenue.id} />}
-            </div>
           </div>
 
-          {/* Sidebar Richieste */}
-          <div className="space-y-6">
-            <div className="bg-slate-900/50 p-6 rounded-3xl border border-white/5 backdrop-blur-xl">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
-                  <Users size={18} className="text-easygig-accent" /> Richieste ({requests.length})
+          {/* Right Column: Candidature & Live Confermati */}
+          <div className="lg:col-span-5 space-y-6">
+            
+            {/* Richieste Pendenti */}
+            <section className="glass-panel p-6 rounded-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                  <Clock className="text-amber-400" size={18} />
+                  Candidature In Attesa ({pendingRequests.length})
                 </h3>
-                {requests.length > 1 && (
+                {pendingRequests.length > 0 && (
                   <button 
-                    onClick={handleAcceptAll}
-                    disabled={isProcessingAll}
-                    className="text-[10px] font-bold text-easygig-accent hover:underline uppercase tracking-tighter"
+                    onClick={() => setIsConfirmAcceptAllOpen(true)}
+                    className="text-[11px] font-bold text-emerald-400 hover:underline"
                   >
-                    {isProcessingAll ? "In corso..." : "Accetta Tutti"}
+                    Accetta Tutte
                   </button>
                 )}
               </div>
-              
-              <div className="space-y-4">
-                {requests.length === 0 ? (
-                  <div className="text-slate-500 text-sm italic text-center py-8">
-                    Nessuna richiesta in attesa.
-                  </div>
-                ) : (
-                  requests.map((req) => {
-                    const { artist, band } = requestDetails[req.bookingId] || {};
-                    return (
-                      <div key={req.bookingId} className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-4 group hover:border-easygig-accent/30 transition-all">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-premium rounded-full flex items-center justify-center text-white font-black text-xs shadow-lg">
-                              {band?.name?.charAt(0) || artist?.firstName?.charAt(0) || "A"}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-bold text-sm truncate max-w-[140px]">
-                                {band ? band.name : artist ? `${artist.firstName} ${artist.lastName}` : `ID: ${req.userId}`}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1">
-                                  <Star size={10} className="text-amber-400 fill-amber-400" />
-                                  <span className="text-[10px] text-amber-400 font-bold">{band?.reputation || artist?.reputation || "5.0"}</span>
-                                </div>
-                                {band && <span className="text-[9px] bg-easygig-accent/20 text-easygig-accent px-1.5 py-0.5 rounded font-bold uppercase">{band.bandType}</span>}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
 
-                        <div className="bg-slate-800/50 p-2 rounded-xl">
-                          <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-1">Data Richiesta</p>
-                          <p className="text-xs font-medium text-slate-200">
-                            {req.slotStart ? format(new Date(req.slotStart), 'EEEE dd MMMM', { locale: it }) : "Data non disponibile"}
+              {pendingRequests.length === 0 ? (
+                <p className="text-slate-500 text-xs italic py-4 text-center">Nessuna candidatura in attesa al momento.</p>
+              ) : (
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                  {pendingRequests.map(req => (
+                    <div key={req.id} className="p-4 bg-slate-950/80 rounded-xl border border-slate-800 flex flex-col gap-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-white text-xs">Candidatura ID: #{req.id}</h4>
+                          <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                            {req.slotStart ? format(new Date(req.slotStart), 'EEEE d MMMM, HH:mm', { locale: it }) : 'Data non specificata'}
                           </p>
                         </div>
-                        
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleRequest(req.bookingId, 'accept')}
-                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
-                          >
-                            <CheckCircle2 size={12} /> Accetta
-                          </button>
-                          <button 
-                            onClick={() => handleRequest(req.bookingId, 'reject')}
-                            className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
-                          >
-                            <XCircle size={12} /> Rifiuta
-                          </button>
-                        </div>
+                        <span className="badge-indigo text-[10px]">Candidato</span>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
 
-            <div className="bg-easygig-accent/5 p-6 rounded-3xl border border-easygig-accent/20">
-              <h3 className="font-bold mb-2 text-easygig-accent text-xs uppercase">Legenda Calendario</h3>
-              <ul className="space-y-3 text-xs">
-                <li className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Slot Disponibile</li>
-                <li className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Richiesta Pendente</li>
-                <li className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Evento Confermato</li>
-              </ul>
-            </div>
-
-            {/* Prossimi Eventi Confermati */}
-            <div className="bg-slate-900/50 p-6 rounded-3xl border border-white/5 backdrop-blur-xl">
-              <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-wider mb-6">
-                <CheckCircle2 size={18} className="text-emerald-500" /> Prossimi Live
-              </h3>
-              <div className="space-y-4">
-                {upcomingEvents.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic text-center py-4">Nessun evento confermato.</p>
-                ) : (
-                  upcomingEvents.map(event => {
-                    const { artist, band } = requestDetails[event.bookingId] || {};
-                    return (
-                      <div key={event.bookingId} className="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/10 flex flex-col gap-3 group hover:border-emerald-500/30 transition-all">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-black text-xs uppercase tracking-tighter text-white">{band?.name || `${artist?.firstName} ${artist?.lastName}`}</p>
-                            <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-widest mt-1">
-                               {event.slotStart && format(new Date(event.slotStart), 'dd MMMM, HH:mm', { locale: it })}
-                            </p>
-                          </div>
-                        </div>
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
                         <button 
-                          onClick={() => { setSelectedBookingForCancel(event); setIsCancelModalOpen(true); }}
-                          className="w-full bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white text-[10px] font-bold py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+                          onClick={() => handleBookingAction(req.id, 'ACCEPT')}
+                          className="flex-1 btn-primary py-1.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white"
                         >
-                          <X size={12} /> Annulla Evento
+                          Accetta
+                        </button>
+                        <button 
+                          onClick={() => handleBookingAction(req.id, 'REJECT')}
+                          className="flex-1 btn-secondary py-1.5 text-[11px] text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
+                        >
+                          Rifiuta
                         </button>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
-            {/* Storico Eventi (per recensioni) */}
-            <div className="bg-slate-900/50 p-6 rounded-3xl border border-white/5 backdrop-blur-xl">
-              <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-wider mb-6">
-                <Clock size={18} className="text-slate-400" /> Eventi Conclusi
+            {/* Live Confermati */}
+            <section className="glass-panel p-6 rounded-2xl">
+              <h3 className="text-base font-bold text-white tracking-tight mb-4 flex items-center gap-2">
+                <CheckCircle2 className="text-emerald-400" size={18} />
+                Live Confermati ({acceptedBookings.length})
               </h3>
-              <div className="space-y-4">
-                {pastEvents.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic text-center py-4">Nessun evento concluso da recensire.</p>
-                ) : (
-                  pastEvents.map(event => {
-                    const { artist, band } = requestDetails[event.bookingId] || {};
-                    return (
-                      <div key={event.bookingId} className="bg-white/5 p-4 rounded-2xl border border-white/5 flex flex-col gap-3">
-                        <div className="flex justify-between items-center">
-                          <p className="font-bold text-xs truncate max-w-[140px]">{band?.name || `${artist?.firstName} ${artist?.lastName}`}</p>
-                          <p className="text-[9px] text-slate-500 uppercase font-bold">{event.slotStart && format(new Date(event.slotStart), 'dd MMM')}</p>
+
+              {acceptedBookings.length === 0 ? (
+                <p className="text-slate-500 text-xs italic py-4 text-center">Nessun live confermato per questo locale.</p>
+              ) : (
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                  {acceptedBookings.map(req => (
+                    <div key={req.id} className="p-4 bg-slate-950/80 rounded-xl border border-slate-800 flex flex-col gap-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-white text-xs">Live Confermato #{req.id}</h4>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {req.slotStart ? format(new Date(req.slotStart), 'EEEE d MMMM, HH:mm', { locale: it }) : 'Data non specificata'}
+                          </p>
                         </div>
+                        <span className="badge-emerald text-[10px]">CONFERMATO</span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        {new Date(req.slotStart) <= new Date() && (
+                          <button 
+                            onClick={() => { setSelectedBookingForReview(req); setIsReviewModalOpen(true); }}
+                            className="flex-1 btn-secondary py-1 text-[11px]"
+                          >
+                            Recensisci Artista
+                          </button>
+                        )}
                         <button 
-                          onClick={() => { setSelectedBookingForReview(event); setIsReviewModalOpen(true); }}
-                          className="w-full bg-white/5 hover:bg-easygig-accent text-white text-[10px] font-bold py-2 rounded-lg transition-all"
+                          onClick={() => { setSelectedBookingForCancel(req); setIsCancelModalOpen(true); }}
+                          className="btn-secondary py-1 px-3 text-[11px] text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
                         >
-                          Recensisci {band ? 'Band' : 'Artista'}
+                          Annulla
                         </button>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
           </div>
+
         </div>
 
-        {/* Modal: Gestione Slot del Giorno (1 Slot = 1 Band) */}
-        {isInviteModalOpen && selectedDayForInvite && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-            <div className="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl">
-              <div className="p-6 md:p-8">
-                
-                {/* Header Modale */}
-                <div className="flex justify-between items-start mb-6 border-b border-slate-800 pb-4">
-                  <div>
-                    <span className="badge-indigo mb-1">1 Slot = 1 Esibizione Band</span>
-                    <h3 className="text-2xl font-bold text-white tracking-tight">
-                      Gestione Slot del Giorno
-                    </h3>
-                    <p className="text-slate-400 text-xs mt-0.5">
-                      {format(selectedDayForInvite, 'EEEE d MMMM yyyy', { locale: it })}
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => { setIsInviteModalOpen(false); setSelectedSlotForInvite(null); }} 
-                    className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-colors"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
+      </div>
 
-                {/* --- LISTA SLOT ESISTENTI NEL GIORNO --- */}
-                <div className="space-y-4 mb-8">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Slot Presenti ({venueSlots.filter(s => s.start && s.start.startsWith(format(selectedDayForInvite, 'yyyy-MM-dd'))).length})
-                  </h4>
+      {/* Modal Gestione Slot Giornata */}
+      {isDaySlotsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-2xl p-6 shadow-2xl relative">
+            <button 
+              onClick={() => setIsDaySlotsModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg"
+            >
+              <X size={18} />
+            </button>
 
-                  {venueSlots.filter(s => s.start && s.start.startsWith(format(selectedDayForInvite, 'yyyy-MM-dd'))).length === 0 ? (
-                    <div className="p-6 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-center">
-                      <p className="text-xs text-slate-400">Nessuno slot aperto per questa giornata.</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Utilizza il form qui sotto per aggiungere il primo slot per una band.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                      {venueSlots
-                        .filter(s => s.start && s.start.startsWith(format(selectedDayForInvite, 'yyyy-MM-dd')))
-                        .map((slot) => {
-                          const startTimeStr = format(new Date(slot.start), 'HH:mm');
-                          const endTimeStr = format(new Date(slot.end), 'HH:mm');
-                          const isAvailable = slot.state === 'AVAILABLE';
-                          const isPending = slot.state === 'PENDING';
+            <h3 className="text-lg font-bold text-white tracking-tight mb-1">
+              Slot per il {selectedDate ? format(selectedDate, 'd MMMM yyyy', { locale: it }) : ''}
+            </h3>
+            <p className="text-slate-400 text-xs mb-6">Visualizza, aggiungi o elimina gli slot disponibili per questa giornata (1 Slot = 1 Esibizione Band)</p>
 
-                          return (
-                            <div key={slot.id} className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-3">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 rounded-lg bg-slate-800 text-indigo-400">
-                                    <Clock className="w-4 h-4" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-bold text-white">
-                                      {startTimeStr} — {endTimeStr}
-                                    </p>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isAvailable ? 'text-emerald-400' : isPending ? 'text-amber-400' : 'text-rose-400'}`}>
-                                      {isAvailable ? 'Libero (In attesa di candidature)' : isPending ? 'Richiesta Pendente' : 'Prenotato / Confermato'}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {isAvailable && (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => setSelectedSlotForInvite(selectedSlotForInvite?.id === slot.id ? null : slot)}
-                                      className="btn-secondary py-1.5 px-3 text-xs"
-                                    >
-                                      <UserPlus className="w-3.5 h-3.5" />
-                                      <span>Invita Band</span>
-                                    </button>
-
-                                    <button
-                                      onClick={() => handleDeleteSlot(slot.id)}
-                                      className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors"
-                                      title="Elimina Slot"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Panel Invita Band specifico per questo Slot */}
-                              {selectedSlotForInvite?.id === slot.id && (
-                                <div className="mt-2 pt-3 border-t border-slate-800 space-y-3 animate-fade-in">
-                                  <p className="text-xs font-semibold text-indigo-400">Invita una band specifica per lo slot {startTimeStr} - {endTimeStr}:</p>
-                                  <div className="relative">
-                                    <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
-                                    <input
-                                      type="text"
-                                      placeholder="Cerca band per nome..."
-                                      value={bandSearchQuery}
-                                      onChange={(e) => setBandSearchQuery(e.target.value)}
-                                      className="input-studio pl-10 w-full text-xs"
-                                    />
-                                  </div>
-
-                                  {isSearchingBands ? (
-                                    <div className="flex justify-center py-4"><Loader2 className="animate-spin text-indigo-400" /></div>
-                                  ) : foundBands.length > 0 ? (
-                                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                                      {foundBands.map(b => (
-                                        <div key={b.id} className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                                          <div>
-                                            <p className="font-bold text-white">{b.name}</p>
-                                            <p className="text-[10px] text-slate-400">{b.genre || 'Genere non specificato'}</p>
-                                          </div>
-                                          <button
-                                            onClick={() => inviteBandToSlot(b, slot.id)}
-                                            className="btn-primary py-1 px-2.5 text-[11px]"
-                                          >
-                                            Invia Invito
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
-                </div>
-
-                {/* --- FORM CREAZIONE NUOVO SLOT NEL GIORNO --- */}
-                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <Plus className="w-4 h-4 text-indigo-400" /> Aggiungi un altro Slot (1 Slot = 1 Band)
-                  </h4>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Ora Inizio</label>
-                      <input
-                        type="time"
-                        value={slotStartTime}
-                        onChange={(e) => setSlotStartTime(e.target.value)}
-                        className="input-studio w-full"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Ora Fine</label>
-                      <input
-                        type="time"
-                        value={slotEndTime}
-                        onChange={(e) => setSlotEndTime(e.target.value)}
-                        className="input-studio w-full"
-                      />
-                    </div>
-
-                    <button
-                      onClick={handleAddSlotForDay}
-                      className="btn-primary w-full py-3 text-xs col-span-2 sm:col-span-1"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Crea Slot</span>
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal Recensione Artista - componente condiviso */}
-        <ReviewModal
-          isOpen={isReviewModalOpen}
-          onClose={() => { setIsReviewModalOpen(false); setSelectedBookingForReview(null); }}
-          onSubmit={handleReviewSubmit}
-          isSubmitting={isSubmittingReview}
-          title="Recensisci l'Artista"
-          placeholder="Come si è comportata la band? Puntualità, coinvolgimento del pubblico..."
-        />
-
-        {/* Modal Cancellazione Evento - componente condiviso */}
-        <CancelModal
-          isOpen={isCancelModalOpen}
-          onClose={() => { setIsCancelModalOpen(false); setSelectedBookingForCancel(null); setCancelReason(''); }}
-          onConfirm={handleCancelBooking}
-          cancelReason={cancelReason}
-          onReasonChange={setCancelReason}
-          slotStart={selectedBookingForCancel?.slotStart}
-          isSubmitting={isSubmittingCancel}
-          title="Annulla Evento"
-          lateWarningMessage="Mancano meno di 48 ore all'evento. Come Direttore Artistico, il tuo locale riceverà automaticamente 1 STRIKE sulla reputazione."
-          confirmLabel="Conferma Annullamento"
-        />
-
-        {/* Modal: Creazione Massiva Slot */}
-        {isBulkModalOpen && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-fade-in">
-            <div className="bg-slate-900 border border-white/10 w-full max-w-2xl rounded-[3.5rem] overflow-hidden shadow-[0_0_50px_-12px_rgba(79,70,229,0.3)]">
-              <div className="p-12">
-                <div className="flex justify-between items-start mb-10">
-                  <div className="flex items-center gap-5">
-                    <div className="bg-indigo-500/20 p-4 rounded-3xl text-indigo-400">
-                       <CalendarIcon size={32} />
-                    </div>
-                    <div>
-                      <h3 className="text-3xl font-black uppercase tracking-tight">Programmazione Rapida</h3>
-                      <p className="text-slate-400 font-medium">Configura una serie di slot ricorrenti</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setIsBulkModalOpen(false)} className="p-3 hover:bg-white/5 rounded-full transition-all">
-                    <X size={28} />
-                  </button>
-                </div>
-
-                <div className="space-y-10">
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Inizio</label>
-                      <input 
-                        type="date" 
-                        value={bulkConfig.startDate}
-                        onChange={(e) => setBulkConfig({...bulkConfig, startDate: e.target.value})}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Fine</label>
-                      <input 
-                        type="date" 
-                        value={bulkConfig.endDate}
-                        onChange={(e) => setBulkConfig({...bulkConfig, endDate: e.target.value})}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Giorni Attivi</label>
-                    <div className="flex justify-between gap-2">
-                      {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day, idx) => (
-                        <button
-                          key={day}
-                          onClick={() => {
-                            const newDays = [...bulkConfig.days];
-                            newDays[idx] = !newDays[idx];
-                            setBulkConfig({...bulkConfig, days: newDays});
-                          }}
-                          className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all
-                            ${bulkConfig.days[idx] 
-                              ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 scale-105' 
-                              : 'bg-white/5 text-slate-500 hover:bg-white/10'}
-                          `}
-                        >
-                          {day}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Orario Inizio Standard</label>
-                    <input 
-                      type="time" 
-                      value={bulkConfig.startTime}
-                      onChange={(e) => setBulkConfig({...bulkConfig, startTime: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                    />
-                  </div>
-
-                  <div className="flex gap-4 pt-6">
-                    <button 
-                      onClick={() => setIsBulkModalOpen(false)}
-                      className="flex-1 bg-white/5 font-black py-6 rounded-3xl uppercase tracking-widest text-xs hover:bg-white/10 transition-all"
-                    >
-                      Annulla
-                    </button>
-                    <button 
-                      onClick={handleBulkCreate}
-                      className="flex-1 bg-gradient-premium text-white font-black py-6 rounded-3xl uppercase tracking-widest text-xs shadow-2xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                    >
-                      Genera Calendario
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      {/* Modale Aggiunta Locale */}
-      {isAddVenueModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setIsAddVenueModalOpen(false)} />
-          <div className="relative w-full max-w-2xl bg-slate-900 border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 md:p-10">
-              <div className="flex justify-between items-center mb-8">
+            {/* Form Aggiunta Slot Orario */}
+            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-6 space-y-3">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">Aggiungi Nuovo Slot Orario</h4>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <h3 className="text-2xl font-black uppercase tracking-tight">Nuovo Locale</h3>
-                  <p className="text-slate-400 text-sm font-medium">Registra una nuova location da gestire</p>
-                </div>
-                <button onClick={() => setIsAddVenueModalOpen(false)} className="p-3 hover:bg-white/5 rounded-2xl transition-colors">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <form onSubmit={handleAddVenue} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Nome Locale</label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-easygig-accent outline-none transition-all"
-                      value={newVenueData.name}
-                      onChange={(e) => setNewVenueData({...newVenueData, name: e.target.value})}
-                      placeholder="Es: Blue Note"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Telefono</label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-easygig-accent outline-none transition-all"
-                      value={newVenueData.phone}
-                      onChange={(e) => setNewVenueData({...newVenueData, phone: e.target.value})}
-                      placeholder="+39 ..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Capienza</label>
-                    <input 
-                      required
-                      type="number" 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-easygig-accent outline-none transition-all"
-                      value={newVenueData.capacity}
-                      onChange={(e) => setNewVenueData({...newVenueData, capacity: e.target.value})}
-                      placeholder="150"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Tipo Posti</label>
-                    <select 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 outline-none appearance-none"
-                      value={newVenueData.type}
-                      onChange={(e) => setNewVenueData({...newVenueData, type: e.target.value})}
-                    >
-                      <option value="STANDING" className="bg-slate-900 text-white">Solo in piedi</option>
-                      <option value="SEATED" className="bg-slate-900 text-white">Solo seduti</option>
-                      <option value="TABLES" className="bg-slate-900 text-white">Tavoli</option>
-                      <option value="MIXED" className="bg-slate-900 text-white">Misto</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="md:col-span-1 space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Via</label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 outline-none"
-                      value={newVenueData.street}
-                      onChange={(e) => setNewVenueData({...newVenueData, street: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Civico</label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 outline-none"
-                      value={newVenueData.houseNumber}
-                      onChange={(e) => setNewVenueData({...newVenueData, houseNumber: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">CAP</label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 outline-none"
-                      value={newVenueData.zipCode}
-                      onChange={(e) => setNewVenueData({...newVenueData, zipCode: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2 relative">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Città</label>
-                  <div className="relative">
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 pl-10 outline-none"
-                      value={citySearch}
-                      onChange={(e) => {
-                        setCitySearch(e.target.value);
-                        if (selectedCity) setSelectedCity(null);
-                      }}
-                      placeholder="Cerca città..."
-                    />
-                    <MapPin className="absolute left-3 top-3.5 text-slate-500" size={16} />
-                    {isSearchingCities && <Loader2 className="absolute right-3 top-3.5 text-easygig-accent animate-spin" size={16} />}
-                  </div>
-                  {cities.length > 0 && (
-                    <div className="absolute z-50 w-full mt-2 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                      {cities.map(city => (
-                        <button
-                          key={city.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedCity(city);
-                            setCitySearch(city.name);
-                            setNewVenueData({...newVenueData, cityId: city.id});
-                            setCities([]);
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-easygig-accent/20 transition-colors border-b border-white/5 last:border-none"
-                        >
-                          <span className="text-sm font-medium">{city.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Attrezzatura</label>
-                  <textarea 
-                    required
-                    rows="3"
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 outline-none"
-                    value={newVenueData.equipment}
-                    onChange={(e) => setNewVenueData({...newVenueData, equipment: e.target.value})}
-                    placeholder="Descrivi l'impianto audio/luci..."
+                  <label className="text-[10px] font-bold text-slate-400 block mb-1">Inizio Esibizione</label>
+                  <input 
+                    type="time" 
+                    value={slotStartTime}
+                    onChange={(e) => setSlotStartTime(e.target.value)}
+                    className="input-studio py-1.5 px-3 text-xs"
                   />
                 </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 block mb-1">Fine Esibizione</label>
+                  <input 
+                    type="time" 
+                    value={slotEndTime}
+                    onChange={(e) => setSlotEndTime(e.target.value)}
+                    className="input-studio py-1.5 px-3 text-xs"
+                  />
+                </div>
+              </div>
+              <button 
+                onClick={handleCreateSlotSingle}
+                disabled={isAddingSlot}
+                className="w-full btn-primary py-2 text-xs"
+              >
+                {isAddingSlot ? 'Creazione in corso...' : '+ Crea Slot in questo Orario'}
+              </button>
+            </div>
 
-                <button 
-                  type="submit"
-                  className="w-full bg-easygig-accent hover:bg-indigo-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-indigo-500/20 transition-all uppercase tracking-widest text-xs mt-4"
-                >
-                  Salva Locale
-                </button>
-              </form>
+            {/* Elenco Slot Esistenti della Giornata */}
+            <div className="space-y-3 max-h-60 overflow-y-auto mb-6 pr-1">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Slot Attivi ({daySlots.length})</h4>
+              {daySlots.length === 0 ? (
+                <p className="text-slate-500 text-xs italic text-center py-4">Nessuno slot creato per questo giorno.</p>
+              ) : (
+                daySlots.map(slot => (
+                  <div key={slot.id} className="flex items-center justify-between p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <Clock size={16} className="text-indigo-400" />
+                      <div>
+                        <p className="font-bold text-xs text-white">
+                          {format(new Date(slot.start), 'HH:mm')} - {format(new Date(slot.end), 'HH:mm')}
+                        </p>
+                        <span className={`text-[10px] font-bold uppercase ${slot.state === 'AVAILABLE' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {slot.state === 'AVAILABLE' ? 'Libero' : 'Occupato'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => handleDeleteSlot(slot.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                      title="Elimina Slot"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => { setIsDaySlotsModalOpen(false); setIsInviteModalOpen(true); }}
+                className="flex-1 btn-secondary py-2.5 text-xs text-indigo-400 border-indigo-500/30"
+              >
+                Invita una Band per questa data
+              </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+
+      {/* Modal Invita Band */}
+      {isInviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+            <button 
+              onClick={() => setIsInviteModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-lg font-bold text-white tracking-tight mb-4">
+              Invita una Band
+            </h3>
+
+            <div className="space-y-4">
+              <input 
+                type="text" 
+                placeholder="Cerca band per nome..."
+                value={bandSearchQuery}
+                onChange={(e) => handleBandSearch(e.target.value)}
+                className="input-studio text-xs py-2 px-3"
+              />
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {searchResults.map(band => (
+                  <div key={band.id} className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                    <div>
+                      <p className="font-bold text-xs text-white">{band.name}</p>
+                      <p className="text-[10px] text-slate-400">{band.cityName}</p>
+                    </div>
+                    <button 
+                      onClick={() => handleInviteBand(band)}
+                      className="btn-primary py-1 px-3 text-[11px]"
+                    >
+                      Invita
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Aggiungi Locale */}
+      {isAddVenueModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative">
+            <button 
+              onClick={() => setIsAddVenueModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-lg font-bold text-white tracking-tight mb-4">Nuovo Locale</h3>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Nome Locale *</label>
+                <input 
+                  type="text" 
+                  value={newVenue.name}
+                  onChange={(e) => setNewVenue({...newVenue, name: e.target.value})}
+                  placeholder="Es. Blue Note Club"
+                  className="input-studio py-2 px-3"
+                />
+              </div>
+
+              <div className="relative">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Città *</label>
+                <input 
+                  type="text" 
+                  value={citySearch}
+                  onChange={(e) => handleCitySearch(e.target.value)}
+                  placeholder="Cerca città (es. Roma, Milano)..."
+                  className="input-studio py-2 px-3"
+                />
+                {cities.length > 0 && (
+                  <div className="absolute z-10 left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl max-h-40 overflow-y-auto">
+                    {cities.map(c => (
+                      <div 
+                        key={c.id} 
+                        onClick={() => { setNewVenue({...newVenue, cityId: c.id}); setCitySearch(c.name); setCities([]); }}
+                        className="p-2 hover:bg-slate-800 cursor-pointer text-xs text-slate-200"
+                      >
+                        {c.name} ({c.regionName})
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Indirizzo</label>
+                <input 
+                  type="text" 
+                  value={newVenue.address}
+                  onChange={(e) => setNewVenue({...newVenue, address: e.target.value})}
+                  placeholder="Via/Piazza e numero civico"
+                  className="input-studio py-2 px-3"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tipo Locale</label>
+                <select 
+                  value={newVenue.venueType}
+                  onChange={(e) => setNewVenue({...newVenue, venueType: e.target.value})}
+                  className="input-studio py-2 px-3"
+                >
+                  <option value="BAR_PUBS">Bar / Pub</option>
+                  <option value="LIVE_CLUB">Live Club</option>
+                  <option value="THEATER">Teatro</option>
+                  <option value="ARENA">Arena / Festival</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => setIsAddVenueModalOpen(false)} className="flex-1 btn-secondary py-2.5">Annulla</button>
+                <button onClick={handleCreateVenue} className="flex-1 btn-primary py-2.5">Crea Locale</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Accept All Pending Modal */}
+      <ConfirmModal
+        isOpen={isConfirmAcceptAllOpen}
+        onClose={() => setIsConfirmAcceptAllOpen(false)}
+        onConfirm={handleAcceptAllPending}
+        title="Accetta Tutte le Candidature Pendenti"
+        message="Sei sicuro di voler accettare TUTTE le candidature attualmente pendenti per questo locale?"
+        confirmLabel="Conferma Accettazione Massiva"
+        isDanger={false}
+      />
+
+      {/* Modal Recensione */}
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => { setIsReviewModalOpen(false); setSelectedBookingForReview(null); }}
+        onSubmit={handleReviewSubmit}
+        isSubmitting={isSubmittingReview}
+        title="Recensisci l'Artista"
+        placeholder="Com'è andata l'esibizione? Puntualità, coinvolgimento del pubblico..."
+      />
+
+      {/* Modal Cancellazione */}
+      <CancelModal
+        isOpen={isCancelModalOpen}
+        onClose={() => { setIsCancelModalOpen(false); setSelectedBookingForCancel(null); setCancelReason(''); }}
+        onConfirm={handleCancelBooking}
+        cancelReason={cancelReason}
+        onReasonChange={setCancelReason}
+        slotStart={selectedBookingForCancel?.slotStart}
+        isSubmitting={isSubmittingCancel}
+        disableOnLateCancellation={true}
+        title="Annulla Prenotazione"
+        confirmLabel="Conferma Cancellazione"
+      />
+
     </div>
   );
 }
-
-// StatCard è ora importato da components/StatCard.jsx

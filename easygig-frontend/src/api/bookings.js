@@ -5,7 +5,19 @@ export const getVenueRequests = async (venueId, status = 'PENDING') => {
   return response.data;
 };
 
+export const getBookingRequestsForVenue = async (venueId) => {
+  const response = await api.get(`/bookings/venue/${venueId}`);
+  return response.data;
+};
+
 export const acceptRequest = async (requestId, userId) => {
+  const response = await api.patch(`/bookings/${requestId}/accept`, {}, {
+    headers: { 'X-User-Id': userId }
+  });
+  return response.data;
+};
+
+export const acceptBookingRequest = async (requestId, userId) => {
   const response = await api.patch(`/bookings/${requestId}/accept`, {}, {
     headers: { 'X-User-Id': userId }
   });
@@ -19,10 +31,22 @@ export const rejectRequest = async (requestId, userId) => {
   return response.data;
 };
 
+export const rejectBookingRequest = async (requestId, userId) => {
+  const response = await api.patch(`/bookings/${requestId}/reject`, {}, {
+    headers: { 'X-User-Id': userId }
+  });
+  return response.data;
+};
+
 export const inviteArtist = async (venueId, artistId, slotId) => {
   const response = await api.post(`/bookings/invite?artistId=${artistId}&slotId=${slotId}`, {}, {
     headers: { 'X-User-Id': venueId }
   });
+  return response.data;
+};
+
+export const sendInviteToBand = async (data) => {
+  const response = await api.post(`/bookings/invite`, data);
   return response.data;
 };
 
@@ -41,11 +65,6 @@ export const assignBandToSlot = async (bookingId, data) => {
   return response.data;
 };
 
-/**
- * Cancellazione booking da parte dell'artista.
- * Può ricevere uno strike se la cancellazione avviene a meno di 48h dall'evento (Late Cancellation).
- * Backend endpoint: PATCH /bookings/{bookingId}/cancel-user
- */
 export const cancelBookingByUser = async (userId, bookingId, reason) => {
   const response = await api.patch(
     `/bookings/${bookingId}/cancel-user`,
@@ -55,10 +74,6 @@ export const cancelBookingByUser = async (userId, bookingId, reason) => {
   return response.data;
 };
 
-/**
- * Cancellazione booking da parte del direttore del locale.
- * Se il booking era già ACCEPTED, il locale riceve uno strike.
- */
 export const cancelBookingByVenue = async (userId, bookingId, reason) => {
   const response = await api.patch(
     `/bookings/${bookingId}/cancel-venue`,

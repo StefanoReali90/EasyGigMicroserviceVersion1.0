@@ -21,6 +21,7 @@ import MusicPlayer from './components/MusicPlayer';
 import LegalFooter from './components/LegalFooter';
 import { useAuthStore } from './store/authStore';
 import { Loader2 } from 'lucide-react';
+import { ToastProvider } from './context/ToastContext';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import BanGuard from './components/BanGuard';
@@ -45,13 +46,13 @@ function App() {
   if (!isHydrated) {
     return (
       <div className="min-h-screen bg-easygig-dark flex items-center justify-center">
-        <Loader2 className="animate-spin text-easygig-accent" size={48} />
+        <Loader2 className="animate-spin text-indigo-500" size={48} />
       </div>
     );
   }
 
   return (
-    <>
+    <ToastProvider>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
@@ -74,7 +75,7 @@ function App() {
       </Routes>
       <MusicPlayer />
       <LegalFooter />
-    </>
+    </ToastProvider>
   );
 }
 

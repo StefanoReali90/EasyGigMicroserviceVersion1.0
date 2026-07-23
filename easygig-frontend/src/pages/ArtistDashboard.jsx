@@ -21,6 +21,8 @@ import { getBandsByUser, addBand, updateBand, removeBandMember } from '../api/ba
 import * as profileApi from '../api/profile';
 import * as reviewApi from '../api/reviews';
 import { getErrorMessage } from '../utility/errorHandler';
+import { useToast } from '../context/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 
 import TrackManager from '../components/TrackManager';
 import PhotoGallery from '../components/PhotoGallery';
@@ -34,6 +36,8 @@ import StatCard from '../components/StatCard';
 
 export default function ArtistDashboard() {
   const { user } = useAuthStore();
+  const toast = useToast();
+
   const [bookings, setBookings] = useState([]);
   const [venueMap, setVenueMap] = useState({});
   const [bands, setBands] = useState([]);
@@ -44,6 +48,11 @@ export default function ArtistDashboard() {
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   const [editingBand, setEditingBand] = useState(null);
   
+  // Confirm Delete Band Modal State
+  const [isConfirmDeleteBandOpen, setIsConfirmDeleteBandOpen] = useState(false);
+  const [bandToDeleteId, setBandToDeleteId] = useState(null);
+  const [isDeletingBand, setIsDeletingBand] = useState(false);
+
   // Review Modal State
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [selectedBookingForReview, setSelectedBookingForReview] = useState(null);
@@ -60,12 +69,12 @@ export default function ArtistDashboard() {
         role: 'VENUE'
       }, user.id);
       
-      alert('Recensione inviata con successo!');
+      toast.success('Recensione inviata con successo!');
       setIsReviewModalOpen(false);
       setSelectedBookingForReview(null);
     } catch (error) {
       console.error('Errore invio recensione:', error);
-      alert(getErrorMessage(error, 'invio della recensione'));
+      toast.error(getErrorMessage(error, 'invio della recensione'));
     } finally {
       setIsSubmittingReview(false);
     }
@@ -81,6 +90,7 @@ export default function ArtistDashboard() {
     setIsSubmittingCancel(true);
     try {
       await bookingApi.cancelBookingByUser(user.id, selectedBookingForCancel.bookingId, reason);
+      toast.success('Prenotazione annullata con successo');
       setIsCancelModalOpen(false);
       setCancelReason('');
       setSelectedBookingForCancel(null);
@@ -88,7 +98,7 @@ export default function ArtistDashboard() {
       setBookings(updatedBookings);
     } catch (error) {
       console.error('Errore cancellazione booking:', error);
-      alert(getErrorMessage(error, 'cancellazione del booking'));
+      toast.error(getErrorMessage(error, 'cancellazione del booking'));
     } finally {
       setIsSubmittingCancel(false);
     }
@@ -161,11 +171,12 @@ export default function ArtistDashboard() {
       await addBand({ ...newBand, memberIds: [user.id] });
       const updatedBands = await getBandsByUser(user.id);
       setBands(updatedBands);
+      toast.success('Band creata con successo!');
       setIsCreateBandModalOpen(false);
       setNewBand({ name: '', description: '', cachet: 0, negotiable: true, bandType: 'ORIGINAL', cityId: '', memberIds: [user.id], genreIds: [] });
       setCitySearch("");
     } catch (error) {
-      alert(getErrorMessage(error, "creazione della band"));
+      toast.error(getErrorMessage(error, "creazione della band"));
     }
   };
 
@@ -177,21 +188,28 @@ export default function ArtistDashboard() {
       });
       const updatedBands = await getBandsByUser(user.id);
       setBands(updatedBands);
+      toast.success('Informazioni band aggiornate!');
       setIsEditBandModalOpen(false);
       setEditingBand(null);
     } catch (error) {
-      alert(getErrorMessage(error, "aggiornamento della band"));
+      toast.error(getErrorMessage(error, "aggiornamento della band"));
     }
   };
 
-  const handleDeleteBand = async (bandId) => {
-    if (!window.confirm("Sei sicuro di voler lasciare questa band? Se sei l'ultimo membro, la band verrà eliminata.")) return;
+  const handleDeleteBand = async () => {
+    if (!bandToDeleteId) return;
+    setIsDeletingBand(true);
     try {
-      await removeBandMember(bandId, user.id, user.id);
+      await removeBandMember(bandToDeleteId, user.id, user.id);
       const updatedBands = await getBandsByUser(user.id);
       setBands(updatedBands);
+      toast.success('Sei uscito dalla band con successo.');
+      setIsConfirmDeleteBandOpen(false);
+      setBandToDeleteId(null);
     } catch (error) {
-      alert(getErrorMessage(error, "rimozione dalla band"));
+      toast.error(getErrorMessage(error, "rimozione dalla band"));
+    } finally {
+      setIsDeletingBand(false);
     }
   };
 
@@ -229,8 +247,9 @@ export default function ArtistDashboard() {
         }
       }
       setCustomGenre("");
+      toast.success(`Genere "${genre.name}" aggiunto!`);
     } catch (error) {
-      alert(getErrorMessage(error, "creazione genere"));
+      toast.error(getErrorMessage(error, "creazione genere"));
     }
   };
 
@@ -437,7 +456,7 @@ export default function ArtistDashboard() {
                       <div key={band.id} className="bg-slate-950/80 p-6 rounded-2xl border border-slate-800 space-y-5 relative group/card">
                         <div className="absolute top-4 right-4 opacity-0 group-hover/card:opacity-100 transition-all">
                           <button 
-                            onClick={() => handleDeleteBand(band.id)}
+                            onClick={() => { setBandToDeleteId(band.id); setIsConfirmDeleteBandOpen(true); }}
                             className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
                             title="Elimina/Lascia Band"
                           >
@@ -547,247 +566,18 @@ export default function ArtistDashboard() {
           confirmLabel="Conferma Cancellazione"
         />
 
+        {/* Confirm Delete Band Modal */}
+        <ConfirmModal
+          isOpen={isConfirmDeleteBandOpen}
+          onClose={() => { setIsConfirmDeleteBandOpen(false); setBandToDeleteId(null); }}
+          onConfirm={handleDeleteBand}
+          title="Lascia la Band"
+          message="Sei sicuro di voler lasciare questa band? Se sei l'ultimo membro, la band verrà eliminata."
+          confirmLabel="Conferma Uscita"
+          isLoading={isDeletingBand}
+        />
+
       </main>
-
-      {/* Create Band Modal */}
-      {isCreateBandModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 md:p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h3 className="text-xl font-bold text-white tracking-tight mb-6">Crea Nuova Band</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 mb-1 block">Nome Band</label>
-                <input 
-                  type="text" 
-                  value={newBand.name} 
-                  onChange={(e) => setNewBand({...newBand, name: e.target.value})}
-                  className="input-studio w-full" 
-                  placeholder="Es. The Velvet Underground"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 mb-1 block">Descrizione / Bio</label>
-                <textarea 
-                  value={newBand.description} 
-                  onChange={(e) => setNewBand({...newBand, description: e.target.value})}
-                  rows="3"
-                  placeholder="Raccontaci della vostra musica..."
-                  className="input-studio w-full resize-none" 
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 mb-1 block">Cachet Base (€)</label>
-                  <input 
-                    type="number" 
-                    value={newBand.cachet} 
-                    onChange={(e) => setNewBand({...newBand, cachet: parseInt(e.target.value) || 0})}
-                    className="input-studio w-full" 
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 mb-1 block">Tipo Band</label>
-                  <select 
-                    value={newBand.bandType}
-                    onChange={(e) => setNewBand({...newBand, bandType: e.target.value})}
-                    className="input-studio w-full"
-                  >
-                    <option value="ORIGINAL" className="bg-slate-900">Originale</option>
-                    <option value="COVER" className="bg-slate-900">Cover</option>
-                    <option value="TRIBUTE" className="bg-slate-900">Tribute</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 mb-1 block">Città</label>
-                <input 
-                  type="text" 
-                  placeholder="Cerca città..."
-                  value={citySearch}
-                  onChange={(e) => handleCitySearch(e.target.value)}
-                  className="input-studio w-full mb-1" 
-                />
-                {cities.length > 0 && (
-                  <div className="bg-slate-950 border border-slate-800 rounded-xl max-h-36 overflow-y-auto">
-                    {cities.map(c => (
-                      <button 
-                        key={c.id} 
-                        onClick={() => { setNewBand({...newBand, cityId: c.id}); setCitySearch(c.name); setCities([]); }}
-                        className="w-full text-left px-3 py-2 hover:bg-slate-800 text-xs text-slate-300 transition-colors"
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 mb-1 block">Generi Musicali</label>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {availableGenres.map(genre => (
-                    <button
-                      key={genre.id}
-                      onClick={() => {
-                        const current = newBand.genreIds || [];
-                        if (current.includes(genre.id)) {
-                          setNewBand({...newBand, genreIds: current.filter(id => id !== genre.id)});
-                        } else {
-                          setNewBand({...newBand, genreIds: [...current, genre.id]});
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                        (newBand.genreIds || []).includes(genre.id) 
-                          ? 'bg-indigo-600 text-white shadow-sm' 
-                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                      }`}
-                    >
-                      {genre.name}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="Genere custom (es. Post-Rock)"
-                    value={customGenre}
-                    onChange={(e) => setCustomGenre(e.target.value)}
-                    className="input-studio flex-1 text-xs" 
-                  />
-                  <button 
-                    onClick={() => handleAddCustomGenre(false)}
-                    className="btn-primary py-2 px-3 text-xs"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-3 border-t border-slate-800">
-                <button 
-                  onClick={() => setIsCreateBandModalOpen(false)}
-                  className="flex-1 btn-secondary py-2.5 text-xs"
-                >
-                  Annulla
-                </button>
-                <button 
-                  onClick={handleCreateBand}
-                  className="flex-1 btn-primary py-2.5 text-xs"
-                >
-                  Crea Band
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Band Modal */}
-      {isEditBandModalOpen && editingBand && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 md:p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h3 className="text-xl font-bold text-white tracking-tight mb-6">Modifica Band</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 mb-1 block">Nome Band</label>
-                <input 
-                  type="text" 
-                  value={editingBand.name} 
-                  onChange={(e) => setEditingBand({...editingBand, name: e.target.value})}
-                  className="input-studio w-full" 
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 mb-1 block">Descrizione / Bio</label>
-                <textarea 
-                  value={editingBand.description || ''} 
-                  onChange={(e) => setEditingBand({...editingBand, description: e.target.value})}
-                  rows="3"
-                  className="input-studio w-full resize-none" 
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 mb-1 block">Cachet Base (€)</label>
-                  <input 
-                    type="number" 
-                    value={editingBand.cachet} 
-                    onChange={(e) => setEditingBand({...editingBand, cachet: parseInt(e.target.value) || 0})}
-                    className="input-studio w-full" 
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 mb-1 block">Tipo Band</label>
-                  <select 
-                    value={editingBand.bandType}
-                    onChange={(e) => setEditingBand({...editingBand, bandType: e.target.value})}
-                    className="input-studio w-full"
-                  >
-                    <option value="ORIGINAL" className="bg-slate-900">Originale</option>
-                    <option value="COVER" className="bg-slate-900">Cover</option>
-                    <option value="TRIBUTE" className="bg-slate-900">Tribute</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-3 border-t border-slate-800">
-                <button 
-                  onClick={() => { setIsEditBandModalOpen(false); setEditingBand(null); }}
-                  className="flex-1 btn-secondary py-2.5 text-xs"
-                >
-                  Annulla
-                </button>
-                <button 
-                  onClick={handleUpdateBand}
-                  className="flex-1 btn-primary py-2.5 text-xs"
-                >
-                  Salva Modifiche
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Gallery Modal */}
-      {isGalleryModalOpen && editingBand && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh] relative">
-            <button 
-              onClick={() => setIsGalleryModalOpen(false)}
-              className="absolute top-6 right-6 p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
-            >
-              <X size={24} />
-            </button>
-            
-            <div className="mb-6">
-              <span className="badge-indigo mb-1">Media Manager</span>
-              <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
-                <Music className="text-indigo-400" size={24} /> Galleria Foto: {editingBand.name}
-              </h3>
-              <p className="text-slate-400 text-xs mt-1">Gestisci le immagini della tua band.</p>
-            </div>
-
-            <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4">
-              <PhotoGallery type="BAND" id={editingBand.id} onUpdate={refreshBands} />
-            </div>
-            
-            <div className="mt-6 flex justify-end">
-              <button 
-                onClick={() => setIsGalleryModalOpen(false)}
-                className="btn-primary py-2.5 px-6 text-xs"
-              >
-                Chiudi Galleria
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

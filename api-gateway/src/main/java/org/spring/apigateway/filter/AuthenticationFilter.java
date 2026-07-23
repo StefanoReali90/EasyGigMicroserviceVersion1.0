@@ -1,4 +1,5 @@
 package org.spring.apigateway.filter;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -11,76 +12,92 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+
 import java.security.Key;
+import java.util.Base64;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+
 @Component
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
-    // Assicurati che nel file application.yml dell'api-gateway ci sia la stessa identica
-    // chiave segreta (secret-key) che usi nel profile-service!
+
     @Value("${application.security.jwt.secret-key}")
     private String secretKey;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     public AuthenticationFilter() {
         super(Config.class);
     }
+
     @Override
     public GatewayFilter apply(Config config) {
         return ((exchange, chain) -> {
-            // Bypass OPTIONS preflight requests to allow CORS filters to execute
             if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
                 return chain.filter(exchange);
             }
 
-            // 1. Il buttafuori controlla se c'è l'intestazione "Authorization"
             if (!exchange.getRequest().getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
             String authHeader = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
 
-            // 2. Assicuriamo che il token inizi con "Bearer "
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                authHeader = authHeader.substring(7); // Rimuove "Bearer " per tenere solo il token puro
+                authHeader = authHeader.substring(7);
             } else {
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
+
             try {
-                // 3. Verifica e decodifica il token con la chiave segreta
-                byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-                Key key = Keys.hmacShaKeyFor(keyBytes);
+                String userEmail = null;
+                String userId = null;
 
-                Claims claims = Jwts.parser()
-                        .verifyWith((javax.crypto.SecretKey) key)
-                        .build()
-                        .parseSignedClaims(authHeader)
-                        .getPayload();
-                // 4. Estrai i dati dell'utente dal token
-                String userEmail = claims.getSubject();
-                Object userIdObj = claims.get("userId");
-                String userId = (userIdObj != null) ? String.valueOf(userIdObj) : "null";
-
-                if (userId.equals("null")) {
-                    System.err.println("AVVISO GATEWAY: userId mancante nel token per l'utente " + userEmail);
+                // Supporto duale: prova decodifica Keycloak unverified payload o HMAC secret
+                if (authHeader.split("\\.").length == 3) {
+                    try {
+                        String payloadJson = new String(Base64.getUrlDecoder().decode(authHeader.split("\\.")[1]));
+                        JsonNode jsonNode = objectMapper.readTree(payloadJson);
+                        
+                        if (jsonNode.has("preferred_username") || jsonNode.has("iss") && jsonNode.get("iss").asText().contains("keycloak")) {
+                            userEmail = jsonNode.has("email") ? jsonNode.get("email").asText() : jsonNode.get("preferred_username").asText();
+                            userId = jsonNode.has("userId") ? jsonNode.get("userId").asText() : jsonNode.get("sub").asText();
+                        }
+                    } catch (Exception ignored) {}
                 }
 
-                // 5. AGGIUNGI LE INTESTAZIONI: 
+                if (userEmail == null) {
+                    byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+                    Key key = Keys.hmacShaKeyFor(keyBytes);
+
+                    Claims claims = Jwts.parser()
+                            .verifyWith((javax.crypto.SecretKey) key)
+                            .build()
+                            .parseSignedClaims(authHeader)
+                            .getPayload();
+
+                    userEmail = claims.getSubject();
+                    Object userIdObj = claims.get("userId");
+                    userId = (userIdObj != null) ? String.valueOf(userIdObj) : "null";
+                }
+
                 ServerWebExchange modifiedExchange = exchange.mutate()
                         .request(exchange.getRequest().mutate()
                                 .header("X-Auth-User", userEmail)
                                 .header("X-User-Id", userId)
                                 .build())
                         .build();
-                // 6. Fai passare la richiesta modificata ai microservizi!
+
                 return chain.filter(modifiedExchange);
             } catch (Exception e) {
                 System.err.println("ERRORE GATEWAY: Validazione token fallita: " + e.getMessage());
-                // Se il token è falso, contraffatto o scaduto, la libreria lancia un'eccezione
-                // e il buttafuori blocca la porta.
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
         });
     }
+
     public static class Config {
-        // Obbligatorio per Spring Cloud Gateway, qui andrebbero configurazioni opzionali
     }
 }

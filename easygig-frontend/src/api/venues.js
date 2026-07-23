@@ -5,6 +5,11 @@ export const getVenuesByDirector = async (directorId) => {
   return response.data;
 };
 
+export const createVenue = async (venueData) => {
+  const response = await api.post('/venues', venueData);
+  return response.data;
+};
+
 export const updateVenue = async (venueId, venueData) => {
   const response = await api.put(`/venues/${venueId}`, venueData);
   return response.data;
@@ -32,4 +37,3 @@ export const getVenueById = async (id) => {
   const response = await api.get(`/venues/${id}`);
   return response.data;
 };
-

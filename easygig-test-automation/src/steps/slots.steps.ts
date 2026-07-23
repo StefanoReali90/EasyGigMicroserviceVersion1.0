@@ -1,4 +1,4 @@
-import { Given, When, Then } from '@cucumber/cucumber';
+import { Given, When, Then, Before } from '@cucumber/cucumber';
 import { expect, request } from '@playwright/test';
 import { ApiHelper } from '../utils/apiHelper.js';
 import { setLastResponse, lastResponseBody } from './auth.steps.js';
@@ -6,11 +6,15 @@ import { setLastResponse, lastResponseBody } from './auth.steps.js';
 let createdSlotId: number | null = null;
 let currentTestDateStr: string = '';
 
+Before(function () {
+  createdSlotId = null;
+  currentTestDateStr = '';
+});
+
 When('creo uno slot per il locale {int} per la data {string} dalle {string} alle {string}', async function (venueId: number, dateStr: string, startTime: string, endTime: string) {
   const { token } = await ApiHelper.getAuthToken();
   const reqContext = await request.newContext({ baseURL: 'http://localhost:8080' });
   
-  // Per garantire l'isolamento del test, genera una data unica basata sul timestamp corrente
   const uniqueDate = new Date(Date.now() + Math.floor(Math.random() * 1000000000)).toISOString().split('T')[0];
   currentTestDateStr = uniqueDate;
 
@@ -45,7 +49,6 @@ When('tento di creare uno slot sovrapposto per la data {string} dalle {string} a
   const { token } = await ApiHelper.getAuthToken();
   const reqContext = await request.newContext({ baseURL: 'http://localhost:8080' });
   
-  // Utilizza la stessa data dinamica generata nello step precedente dello scenario
   const dateStr = currentTestDateStr || originalDateStr;
   const startIso = `${dateStr}T${startTime}:00`;
   const endIso = `${dateStr}T${endTime}:00`;
